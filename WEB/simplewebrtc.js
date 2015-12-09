@@ -72,9 +72,9 @@ function SimpleWebRTC(opts) {
     }
 
     connection.on('connect', function () {
-        self.emit('connectionReady', connection.getSessionid());
+        /*self.emit('connectionReady', connection.getSessionid());
         self.sessionReady = true;
-        self.testReadiness();
+        self.testReadiness();*/
     });
     /**/
     function onMessage (message) {
@@ -121,7 +121,17 @@ function SimpleWebRTC(opts) {
             onMessage(message);
         }
         else if(type=="connect"){
-            connection.connection.id=message;
+            //connection.connection.id=message;
+            connection.socket.peerid=message;
+            console.log("connect",connection.getSessionid());
+            self.emit('connectionReady', connection.getSessionid());
+            self.sessionReady = true;
+            self.testReadiness();
+        }
+        else if(type=="remove"){
+            
+            console.log("connection removed"+message);
+            self.webrtc.removePeers(message.id, room.type);
         }
         else if(type=="join")
         {

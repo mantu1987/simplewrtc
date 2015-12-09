@@ -74,9 +74,9 @@ function SimpleWebRTC(opts) {
     }
 
     connection.on('connect', function () {
-        self.emit('connectionReady', connection.getSessionid());
+        /*self.emit('connectionReady', connection.getSessionid());
         self.sessionReady = true;
-        self.testReadiness();
+        self.testReadiness();*/
     });
     /**/
     function onMessage (message) {
@@ -123,7 +123,17 @@ function SimpleWebRTC(opts) {
             onMessage(message);
         }
         else if(type=="connect"){
-            connection.connection.id=message;
+            //connection.connection.id=message;
+            connection.socket.peerid=message;
+            console.log("connect",connection.getSessionid());
+            self.emit('connectionReady', connection.getSessionid());
+            self.sessionReady = true;
+            self.testReadiness();
+        }
+        else if(type=="remove"){
+            
+            console.log("connection removed"+message);
+            self.webrtc.removePeers(message.id, room.type);
         }
         else if(type=="join")
         {
@@ -535,7 +545,54 @@ SimpleWebRTC.prototype.sendFile = function () {
 
 module.exports = SimpleWebRTC;
 
-},{"./socketioconnection":3,"./webrtc":2,"attachmediastream":7,"mockconsole":6,"webrtcsupport":4,"wildemitter":5}],5:[function(require,module,exports){
+},{"./socketioconnection":3,"./webrtc":2,"attachmediastream":7,"mockconsole":6,"webrtcsupport":4,"wildemitter":5}],4:[function(require,module,exports){
+// created by @HenrikJoreteg
+var prefix;
+var version;
+
+if (window.mozRTCPeerConnection || navigator.mozGetUserMedia) {
+    prefix = 'moz';
+    version = parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10);
+} else if (window.webkitRTCPeerConnection || navigator.webkitGetUserMedia) {
+    prefix = 'webkit';
+    version = navigator.userAgent.match(/Chrom(e|ium)/) && parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10);
+}
+
+var PC = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' &&
+    ((prefix === 'webkit' && version >= 26) ||
+     (prefix === 'moz' && version >= 33))
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+var videoEl = document.createElement('video');
+var supportVp8 = videoEl && videoEl.canPlayType && videoEl.canPlayType('video/webm; codecs="vp8", vorbis') === "probably";
+var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia || navigator.mozGetUserMedia;
+
+// export support flags and constructors.prototype && PC
+module.exports = {
+    prefix: prefix,
+    browserVersion: version,
+    support: !!PC && !!getUserMedia,
+    // new support style
+    supportRTCPeerConnection: !!PC,
+    supportVp8: supportVp8,
+    supportGetUserMedia: !!getUserMedia,
+    supportDataChannel: !!(PC && PC.prototype && PC.prototype.createDataChannel),
+    supportWebAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+    supportMediaStream: !!(MediaStream && MediaStream.prototype.removeTrack),
+    supportScreenSharing: !!screenSharing,
+    // constructors
+    AudioContext: AudioContext,
+    PeerConnection: PC,
+    SessionDescription: SessionDescription,
+    IceCandidate: IceCandidate,
+    MediaStream: MediaStream,
+    getUserMedia: getUserMedia
+};
+
+},{}],5:[function(require,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based
 on @visionmedia's Emitter from UI Kit.
@@ -689,53 +746,6 @@ WildEmitter.mixin = function (constructor) {
 };
 
 WildEmitter.mixin(WildEmitter);
-
-},{}],4:[function(require,module,exports){
-// created by @HenrikJoreteg
-var prefix;
-var version;
-
-if (window.mozRTCPeerConnection || navigator.mozGetUserMedia) {
-    prefix = 'moz';
-    version = parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10);
-} else if (window.webkitRTCPeerConnection || navigator.webkitGetUserMedia) {
-    prefix = 'webkit';
-    version = navigator.userAgent.match(/Chrom(e|ium)/) && parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10);
-}
-
-var PC = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
-var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
-var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
-var MediaStream = window.webkitMediaStream || window.MediaStream;
-var screenSharing = window.location.protocol === 'https:' &&
-    ((prefix === 'webkit' && version >= 26) ||
-     (prefix === 'moz' && version >= 33))
-var AudioContext = window.AudioContext || window.webkitAudioContext;
-var videoEl = document.createElement('video');
-var supportVp8 = videoEl && videoEl.canPlayType && videoEl.canPlayType('video/webm; codecs="vp8", vorbis') === "probably";
-var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia || navigator.mozGetUserMedia;
-
-// export support flags and constructors.prototype && PC
-module.exports = {
-    prefix: prefix,
-    browserVersion: version,
-    support: !!PC && !!getUserMedia,
-    // new support style
-    supportRTCPeerConnection: !!PC,
-    supportVp8: supportVp8,
-    supportGetUserMedia: !!getUserMedia,
-    supportDataChannel: !!(PC && PC.prototype && PC.prototype.createDataChannel),
-    supportWebAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
-    supportMediaStream: !!(MediaStream && MediaStream.prototype.removeTrack),
-    supportScreenSharing: !!screenSharing,
-    // constructors
-    AudioContext: AudioContext,
-    PeerConnection: PC,
-    SessionDescription: SessionDescription,
-    IceCandidate: IceCandidate,
-    MediaStream: MediaStream,
-    getUserMedia: getUserMedia
-};
 
 },{}],6:[function(require,module,exports){
 var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
@@ -910,68 +920,7 @@ WebRTC.prototype.sendDirectlyToAll = function (channel, message, payload) {
 
 module.exports = WebRTC;
 
-},{"./peer":9,"localmedia":10,"mockconsole":6,"util":8,"webrtcsupport":4,"wildemitter":5}],3:[function(require,module,exports){
-var io = require('socket.io-client');
-
-function SocketIoConnection(config) {
-    var self=this;
-    this.funcList={};
-    this.connection = io.connect(config.url, config.socketio);
-    this.socket = new WebSocket("ws://127.0.0.1:1337")
-    this.socket.onopen = function (msg) {
-        this.send(JSON.stringify(["connection"]));
-    };
-    /*this.socket.onmessage=function(details){
-        var detail=JSON.parse(details.data);
-        if(detail[0]==="connect"){
-            self.connection.scid=detail[1];
-        }
-        else
-        {
-            self.on(detail[0], self.funcList[detail[0]]);
-        }
-    }*/
-    this.send=send;
-    function send(msg) {
-        if (this.socket && this.socket.readyState == this.socket.OPEN) {
-            trace("Send a message:" + msg)
-            this.socket.send(msg);
-        } else {
-            console.log('Failed to send');
-        }
-    }
-
-}
-
-SocketIoConnection.prototype.on = function (ev, fn) {
-    console.log(ev,'on io.trap');
-    var self=this;
-    self.connection.on(ev, fn);//want to invoke that on this.socket.onmessage
-    this.funcList[ev]=fn;
-   /* self.socket.onmessage=function(details){
-        
-        function (ev, fn,detail) {
-            
-        }
-    }*/
-};
-
-SocketIoConnection.prototype.emit = function () {
-  //  console.log(arguments);
-    this.connection.emit.apply(this.connection, arguments);
-    //this.socket.send(JSON.stringify(arguments));
-};
-
-SocketIoConnection.prototype.getSessionid = function () {
-    return this.connection.id;
-};
-
-SocketIoConnection.prototype.disconnect = function () {
-    return this.connection.disconnect();
-};
-
-module.exports = SocketIoConnection;
-},{"socket.io-client":11}],8:[function(require,module,exports){
+},{"./peer":9,"localmedia":10,"mockconsole":6,"util":8,"webrtcsupport":4,"wildemitter":5}],8:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1318,7 +1267,68 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":12}],13:[function(require,module,exports){
+},{"events":11}],3:[function(require,module,exports){
+var io = require('socket.io-client');
+
+function SocketIoConnection(config) {
+    var self=this;
+    this.funcList={};
+    //this.connection = io.connect(config.url, config.socketio);
+    this.socket = new WebSocket("ws://127.0.0.1:1337")
+    this.socket.onopen = function (msg) {
+        this.send(JSON.stringify(["connection"]));
+    };
+    /*this.socket.onmessage=function(details){
+        var detail=JSON.parse(details.data);
+        if(detail[0]==="connect"){
+            self.connection.scid=detail[1];
+        }
+        else
+        {
+            self.on(detail[0], self.funcList[detail[0]]);
+        }
+    }*/
+    this.send=send;
+    function send(msg) {
+        if (this.socket && this.socket.readyState == this.socket.OPEN) {
+            trace("Send a message:" + msg)
+            this.socket.send(msg);
+        } else {
+            console.log('Failed to send');
+        }
+    }
+
+}
+
+SocketIoConnection.prototype.on = function (ev, fn) {
+    console.log(ev,'on io.trap');
+    var self=this;
+    //self.connection.on(ev, fn);//want to invoke that on this.socket.onmessage
+    this.funcList[ev]=fn;
+   /* self.socket.onmessage=function(details){
+        
+        function (ev, fn,detail) {
+            
+        }
+    }*/
+};
+
+SocketIoConnection.prototype.emit = function () {
+  //  console.log(arguments);
+   // this.connection.emit.apply(this.connection, arguments);
+    //this.socket.send(JSON.stringify(arguments));
+};
+
+SocketIoConnection.prototype.getSessionid = function () {
+    return this.connection.id;
+};
+
+SocketIoConnection.prototype.disconnect = function () {
+    return this.connection.disconnect();
+};
+
+module.exports = SocketIoConnection;
+},{"socket.io-client":12}],13:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1373,7 +1383,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -2453,7 +2463,7 @@ if (typeof module !== 'undefined') {
   });
 }
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 
 module.exports = require('./lib/');
 
@@ -2811,7 +2821,7 @@ Object.defineProperty(LocalMedia.prototype, 'localScreen', {
 
 module.exports = LocalMedia;
 
-},{"getscreenmedia":21,"getusermedia":20,"hark":19,"mediastream-gain":22,"mockconsole":6,"util":8,"webrtcsupport":18,"wildemitter":5}],23:[function(require,module,exports){
+},{"getscreenmedia":21,"getusermedia":19,"hark":20,"mediastream-gain":22,"mockconsole":6,"util":8,"webrtcsupport":18,"wildemitter":5}],23:[function(require,module,exports){
 /*
  *  Copyright (c) 2014 The WebRTC project authors. All Rights Reserved.
  *
@@ -3361,7 +3371,88 @@ if (typeof module !== 'undefined') {
   });
 }
 
-},{}],15:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
+// getUserMedia helper by @HenrikJoreteg
+var adapter = require('webrtc-adapter-test');
+
+module.exports = function (constraints, cb) {
+    var options, error;
+    var haveOpts = arguments.length === 2;
+    var defaultOpts = {video: true, audio: true};
+
+    var denied = 'PermissionDeniedError';
+    var altDenied = 'PERMISSION_DENIED';
+    var notSatisfied = 'ConstraintNotSatisfiedError';
+
+    // make constraints optional
+    if (!haveOpts) {
+        cb = constraints;
+        constraints = defaultOpts;
+    }
+
+    // treat lack of browser support like an error
+    if (!navigator.getUserMedia) {
+        // throw proper error per spec
+        error = new Error('MediaStreamError');
+        error.name = 'NotSupportedError';
+
+        // keep all callbacks async
+        return window.setTimeout(function () {
+            cb(error);
+        }, 0);
+    }
+
+    // normalize error handling when no media types are requested
+    if (!constraints.audio && !constraints.video) {
+        error = new Error('MediaStreamError');
+        error.name = 'NoMediaRequestedError';
+
+        // keep all callbacks async
+        return window.setTimeout(function () {
+            cb(error);
+        }, 0);
+    }
+
+    // testing support
+    if (localStorage && localStorage.useFirefoxFakeDevice === "true") {
+        constraints.fake = true;
+    }
+
+    navigator.getUserMedia(constraints, function (stream) {
+        cb(null, stream);
+    }, function (err) {
+        var error;
+        // coerce into an error object since FF gives us a string
+        // there are only two valid names according to the spec
+        // we coerce all non-denied to "constraint not satisfied".
+        if (typeof err === 'string') {
+            error = new Error('MediaStreamError');
+            if (err === denied || err === altDenied) {
+                error.name = denied;
+            } else {
+                error.name = notSatisfied;
+            }
+        } else {
+            // if we get an error object make sure '.name' property is set
+            // according to spec: http://dev.w3.org/2011/webrtc/editor/getusermedia.html#navigatorusermediaerror-and-navigatorusermediaerrorcallback
+            error = err;
+            if (!error.name) {
+                // this is likely chrome which
+                // sets a property called "ERROR_DENIED" on the error object
+                // if so we make sure to set a name
+                if (error[denied]) {
+                    err.name = denied;
+                } else {
+                    err.name = notSatisfied;
+                }
+            }
+        }
+
+        cb(error);
+    });
+};
+
+},{"webrtc-adapter-test":24}],15:[function(require,module,exports){
 var util = require('util');
 var each = require('lodash.foreach');
 var pluck = require('lodash.pluck');
@@ -4190,7 +4281,7 @@ PeerConnection.prototype.getStats = function (cb) {
 
 module.exports = PeerConnection;
 
-},{"lodash.foreach":27,"lodash.pluck":26,"sdp-jingle-json":24,"traceablepeerconnection":25,"util":8,"webrtc-adapter-test":23,"wildemitter":5}],16:[function(require,module,exports){
+},{"lodash.foreach":28,"lodash.pluck":27,"sdp-jingle-json":25,"traceablepeerconnection":26,"util":8,"webrtc-adapter-test":23,"wildemitter":5}],16:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 var util = require('util');
 
@@ -4278,88 +4369,7 @@ module.exports.support = typeof window !== 'undefined' && window && window.File 
 module.exports.Sender = Sender;
 module.exports.Receiver = Receiver;
 
-},{"util":8,"wildemitter":5}],20:[function(require,module,exports){
-// getUserMedia helper by @HenrikJoreteg
-var adapter = require('webrtc-adapter-test');
-
-module.exports = function (constraints, cb) {
-    var options, error;
-    var haveOpts = arguments.length === 2;
-    var defaultOpts = {video: true, audio: true};
-
-    var denied = 'PermissionDeniedError';
-    var altDenied = 'PERMISSION_DENIED';
-    var notSatisfied = 'ConstraintNotSatisfiedError';
-
-    // make constraints optional
-    if (!haveOpts) {
-        cb = constraints;
-        constraints = defaultOpts;
-    }
-
-    // treat lack of browser support like an error
-    if (!navigator.getUserMedia) {
-        // throw proper error per spec
-        error = new Error('MediaStreamError');
-        error.name = 'NotSupportedError';
-
-        // keep all callbacks async
-        return window.setTimeout(function () {
-            cb(error);
-        }, 0);
-    }
-
-    // normalize error handling when no media types are requested
-    if (!constraints.audio && !constraints.video) {
-        error = new Error('MediaStreamError');
-        error.name = 'NoMediaRequestedError';
-
-        // keep all callbacks async
-        return window.setTimeout(function () {
-            cb(error);
-        }, 0);
-    }
-
-    // testing support
-    if (localStorage && localStorage.useFirefoxFakeDevice === "true") {
-        constraints.fake = true;
-    }
-
-    navigator.getUserMedia(constraints, function (stream) {
-        cb(null, stream);
-    }, function (err) {
-        var error;
-        // coerce into an error object since FF gives us a string
-        // there are only two valid names according to the spec
-        // we coerce all non-denied to "constraint not satisfied".
-        if (typeof err === 'string') {
-            error = new Error('MediaStreamError');
-            if (err === denied || err === altDenied) {
-                error.name = denied;
-            } else {
-                error.name = notSatisfied;
-            }
-        } else {
-            // if we get an error object make sure '.name' property is set
-            // according to spec: http://dev.w3.org/2011/webrtc/editor/getusermedia.html#navigatorusermediaerror-and-navigatorusermediaerrorcallback
-            error = err;
-            if (!error.name) {
-                // this is likely chrome which
-                // sets a property called "ERROR_DENIED" on the error object
-                // if so we make sure to set a name
-                if (error[denied]) {
-                    err.name = denied;
-                } else {
-                    err.name = notSatisfied;
-                }
-            }
-        }
-
-        cb(error);
-    });
-};
-
-},{"webrtc-adapter-test":28}],28:[function(require,module,exports){
+},{"util":8,"wildemitter":5}],24:[function(require,module,exports){
 /*
  *  Copyright (c) 2014 The WebRTC project authors. All Rights Reserved.
  *
@@ -4909,7 +4919,7 @@ if (typeof module !== 'undefined') {
   });
 }
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 var toSDP = require('./lib/tosdp');
 var toJSON = require('./lib/tojson');
 
@@ -5031,7 +5041,7 @@ exports.toCandidateJSON = toJSON.toCandidateJSON;
 exports.toMediaJSON = toJSON.toMediaJSON;
 exports.toSessionJSON = toJSON.toSessionJSON;
 
-},{"./lib/tojson":30,"./lib/tosdp":29}],21:[function(require,module,exports){
+},{"./lib/tojson":29,"./lib/tosdp":30}],21:[function(require,module,exports){
 // getScreenMedia helper by @HenrikJoreteg
 var getUserMedia = require('getusermedia');
 
@@ -5203,7 +5213,7 @@ window.addEventListener('message', function (event) {
     }
 });
 
-},{"getusermedia":20}],22:[function(require,module,exports){
+},{"getusermedia":19}],22:[function(require,module,exports){
 var support = require('webrtcsupport');
 
 
@@ -5365,7 +5375,7 @@ function on(obj, ev, fn) {
   };
 }
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 
 function getMaxVolume (analyser, fftBins) {
@@ -5634,7 +5644,71 @@ try {
   if (window.localStorage) debug.enable(localStorage.debug);
 } catch(e){}
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
+/**
+ * lodash 3.0.3 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+var arrayEach = require('lodash._arrayeach'),
+    baseEach = require('lodash._baseeach'),
+    bindCallback = require('lodash._bindcallback'),
+    isArray = require('lodash.isarray');
+
+/**
+ * Creates a function for `_.forEach` or `_.forEachRight`.
+ *
+ * @private
+ * @param {Function} arrayFunc The function to iterate over an array.
+ * @param {Function} eachFunc The function to iterate over a collection.
+ * @returns {Function} Returns the new each function.
+ */
+function createForEach(arrayFunc, eachFunc) {
+  return function(collection, iteratee, thisArg) {
+    return (typeof iteratee == 'function' && thisArg === undefined && isArray(collection))
+      ? arrayFunc(collection, iteratee)
+      : eachFunc(collection, bindCallback(iteratee, thisArg, 3));
+  };
+}
+
+/**
+ * Iterates over elements of `collection` invoking `iteratee` for each element.
+ * The `iteratee` is bound to `thisArg` and invoked with three arguments:
+ * (value, index|key, collection). Iteratee functions may exit iteration early
+ * by explicitly returning `false`.
+ *
+ * **Note:** As with other "Collections" methods, objects with a "length" property
+ * are iterated like arrays. To avoid this behavior `_.forIn` or `_.forOwn`
+ * may be used for object iteration.
+ *
+ * @static
+ * @memberOf _
+ * @alias each
+ * @category Collection
+ * @param {Array|Object|string} collection The collection to iterate over.
+ * @param {Function} [iteratee=_.identity] The function invoked per iteration.
+ * @param {*} [thisArg] The `this` binding of `iteratee`.
+ * @returns {Array|Object|string} Returns `collection`.
+ * @example
+ *
+ * _([1, 2]).forEach(function(n) {
+ *   console.log(n);
+ * }).value();
+ * // => logs each value from left to right and returns the array
+ *
+ * _.forEach({ 'a': 1, 'b': 2 }, function(n, key) {
+ *   console.log(n, key);
+ * });
+ * // => logs each value-key pair and returns the object (iteration order is not guaranteed)
+ */
+var forEach = createForEach(arrayEach, baseEach);
+
+module.exports = forEach;
+
+},{"lodash._arrayeach":37,"lodash._baseeach":39,"lodash._bindcallback":38,"lodash.isarray":40}],27:[function(require,module,exports){
 /**
  * lodash 3.1.2 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -5793,71 +5867,231 @@ function property(path) {
 
 module.exports = pluck;
 
-},{"lodash._baseget":37,"lodash._topath":38,"lodash.isarray":39,"lodash.map":40}],27:[function(require,module,exports){
-/**
- * lodash 3.0.3 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-var arrayEach = require('lodash._arrayeach'),
-    baseEach = require('lodash._baseeach'),
-    bindCallback = require('lodash._bindcallback'),
-    isArray = require('lodash.isarray');
+},{"lodash._baseget":41,"lodash._topath":42,"lodash.isarray":43,"lodash.map":44}],29:[function(require,module,exports){
+var SENDERS = require('./senders');
+var parsers = require('./parsers');
+var idCounter = Math.random();
 
-/**
- * Creates a function for `_.forEach` or `_.forEachRight`.
- *
- * @private
- * @param {Function} arrayFunc The function to iterate over an array.
- * @param {Function} eachFunc The function to iterate over a collection.
- * @returns {Function} Returns the new each function.
- */
-function createForEach(arrayFunc, eachFunc) {
-  return function(collection, iteratee, thisArg) {
-    return (typeof iteratee == 'function' && thisArg === undefined && isArray(collection))
-      ? arrayFunc(collection, iteratee)
-      : eachFunc(collection, bindCallback(iteratee, thisArg, 3));
-  };
-}
 
-/**
- * Iterates over elements of `collection` invoking `iteratee` for each element.
- * The `iteratee` is bound to `thisArg` and invoked with three arguments:
- * (value, index|key, collection). Iteratee functions may exit iteration early
- * by explicitly returning `false`.
- *
- * **Note:** As with other "Collections" methods, objects with a "length" property
- * are iterated like arrays. To avoid this behavior `_.forIn` or `_.forOwn`
- * may be used for object iteration.
- *
- * @static
- * @memberOf _
- * @alias each
- * @category Collection
- * @param {Array|Object|string} collection The collection to iterate over.
- * @param {Function} [iteratee=_.identity] The function invoked per iteration.
- * @param {*} [thisArg] The `this` binding of `iteratee`.
- * @returns {Array|Object|string} Returns `collection`.
- * @example
- *
- * _([1, 2]).forEach(function(n) {
- *   console.log(n);
- * }).value();
- * // => logs each value from left to right and returns the array
- *
- * _.forEach({ 'a': 1, 'b': 2 }, function(n, key) {
- *   console.log(n, key);
- * });
- * // => logs each value-key pair and returns the object (iteration order is not guaranteed)
- */
-var forEach = createForEach(arrayEach, baseEach);
+exports._setIdCounter = function (counter) {
+    idCounter = counter;
+};
 
-module.exports = forEach;
+exports.toSessionJSON = function (sdp, opts) {
+    var i;
+    var creators = opts.creators || [];
+    var role = opts.role || 'initiator';
+    var direction = opts.direction || 'outgoing';
 
-},{"lodash._arrayeach":41,"lodash._baseeach":42,"lodash._bindcallback":43,"lodash.isarray":44}],29:[function(require,module,exports){
+
+    // Divide the SDP into session and media sections.
+    var media = sdp.split('\r\nm=');
+    for (i = 1; i < media.length; i++) {
+        media[i] = 'm=' + media[i];
+        if (i !== media.length - 1) {
+            media[i] += '\r\n';
+        }
+    }
+    var session = media.shift() + '\r\n';
+    var sessionLines = parsers.lines(session);
+    var parsed = {};
+
+    var contents = [];
+    for (i = 0; i < media.length; i++) {
+        contents.push(exports.toMediaJSON(media[i], session, {
+            role: role,
+            direction: direction,
+            creator: creators[i] || 'initiator'
+        }));
+    }
+    parsed.contents = contents;
+
+    var groupLines = parsers.findLines('a=group:', sessionLines);
+    if (groupLines.length) {
+        parsed.groups = parsers.groups(groupLines);
+    }
+
+    return parsed;
+};
+
+exports.toMediaJSON = function (media, session, opts) {
+    var creator = opts.creator || 'initiator';
+    var role = opts.role || 'initiator';
+    var direction = opts.direction || 'outgoing';
+
+    var lines = parsers.lines(media);
+    var sessionLines = parsers.lines(session);
+    var mline = parsers.mline(lines[0]);
+
+    var content = {
+        creator: creator,
+        name: mline.media,
+        description: {
+            descType: 'rtp',
+            media: mline.media,
+            payloads: [],
+            encryption: [],
+            feedback: [],
+            headerExtensions: []
+        },
+        transport: {
+            transType: 'iceUdp',
+            candidates: [],
+            fingerprints: []
+        }
+    };
+    if (mline.media == 'application') {
+        // FIXME: the description is most likely to be independent
+        // of the SDP and should be processed by other parts of the library
+        content.description = {
+            descType: 'datachannel'
+        };
+        content.transport.sctp = [];
+    }
+    var desc = content.description;
+    var trans = content.transport;
+
+    // If we have a mid, use that for the content name instead.
+    var mid = parsers.findLine('a=mid:', lines);
+    if (mid) {
+        content.name = mid.substr(6);
+    }
+
+    if (parsers.findLine('a=sendrecv', lines, sessionLines)) {
+        content.senders = 'both';
+    } else if (parsers.findLine('a=sendonly', lines, sessionLines)) {
+        content.senders = SENDERS[role][direction].sendonly;
+    } else if (parsers.findLine('a=recvonly', lines, sessionLines)) {
+        content.senders = SENDERS[role][direction].recvonly;
+    } else if (parsers.findLine('a=inactive', lines, sessionLines)) {
+        content.senders = 'none';
+    }
+
+    if (desc.descType == 'rtp') {
+        var bandwidth = parsers.findLine('b=', lines);
+        if (bandwidth) {
+            desc.bandwidth = parsers.bandwidth(bandwidth);
+        }
+
+        var ssrc = parsers.findLine('a=ssrc:', lines);
+        if (ssrc) {
+            desc.ssrc = ssrc.substr(7).split(' ')[0];
+        }
+
+        var rtpmapLines = parsers.findLines('a=rtpmap:', lines);
+        rtpmapLines.forEach(function (line) {
+            var payload = parsers.rtpmap(line);
+            payload.parameters = [];
+            payload.feedback = [];
+
+            var fmtpLines = parsers.findLines('a=fmtp:' + payload.id, lines);
+            // There should only be one fmtp line per payload
+            fmtpLines.forEach(function (line) {
+                payload.parameters = parsers.fmtp(line);
+            });
+
+            var fbLines = parsers.findLines('a=rtcp-fb:' + payload.id, lines);
+            fbLines.forEach(function (line) {
+                payload.feedback.push(parsers.rtcpfb(line));
+            });
+
+            desc.payloads.push(payload);
+        });
+
+        var cryptoLines = parsers.findLines('a=crypto:', lines, sessionLines);
+        cryptoLines.forEach(function (line) {
+            desc.encryption.push(parsers.crypto(line));
+        });
+
+        if (parsers.findLine('a=rtcp-mux', lines)) {
+            desc.mux = true;
+        }
+
+        var fbLines = parsers.findLines('a=rtcp-fb:*', lines);
+        fbLines.forEach(function (line) {
+            desc.feedback.push(parsers.rtcpfb(line));
+        });
+
+        var extLines = parsers.findLines('a=extmap:', lines);
+        extLines.forEach(function (line) {
+            var ext = parsers.extmap(line);
+
+            ext.senders = SENDERS[role][direction][ext.senders];
+
+            desc.headerExtensions.push(ext);
+        });
+
+        var ssrcGroupLines = parsers.findLines('a=ssrc-group:', lines);
+        desc.sourceGroups = parsers.sourceGroups(ssrcGroupLines || []);
+
+        var ssrcLines = parsers.findLines('a=ssrc:', lines);
+        var sources = desc.sources = parsers.sources(ssrcLines || []);
+
+        var msidLine = parsers.findLine('a=msid:', lines);
+        if (msidLine) {
+            var msid = parsers.msid(msidLine);
+            ['msid', 'mslabel', 'label'].forEach(function (key) {
+                for (var i = 0; i < sources.length; i++) {
+                    var found = false;
+                    for (var j = 0; j < sources[i].parameters.length; j++) {
+                        if (sources[i].parameters[j].key === key) {
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        sources[i].parameters.push({ key: key, value: msid[key] });
+                    }
+                }
+            });
+        }
+
+        if (parsers.findLine('a=x-google-flag:conference', lines, sessionLines)) {
+            desc.googConferenceFlag = true;
+        }
+    }
+
+    // transport specific attributes
+    var fingerprintLines = parsers.findLines('a=fingerprint:', lines, sessionLines);
+    var setup = parsers.findLine('a=setup:', lines, sessionLines);
+    fingerprintLines.forEach(function (line) {
+        var fp = parsers.fingerprint(line);
+        if (setup) {
+            fp.setup = setup.substr(8);
+        }
+        trans.fingerprints.push(fp);
+    });
+
+    var ufragLine = parsers.findLine('a=ice-ufrag:', lines, sessionLines);
+    var pwdLine = parsers.findLine('a=ice-pwd:', lines, sessionLines);
+    if (ufragLine && pwdLine) {
+        trans.ufrag = ufragLine.substr(12);
+        trans.pwd = pwdLine.substr(10);
+        trans.candidates = [];
+
+        var candidateLines = parsers.findLines('a=candidate:', lines, sessionLines);
+        candidateLines.forEach(function (line) {
+            trans.candidates.push(exports.toCandidateJSON(line));
+        });
+    }
+
+    if (desc.descType == 'datachannel') {
+        var sctpmapLines = parsers.findLines('a=sctpmap:', lines);
+        sctpmapLines.forEach(function (line) {
+            var sctp = parsers.sctpmap(line);
+            trans.sctp.push(sctp);
+        });
+    }
+
+    return content;
+};
+
+exports.toCandidateJSON = function (line) {
+    var candidate = parsers.candidate(line.split('\r\n')[0]);
+    candidate.id = (idCounter++).toString(36).substr(0, 12);
+    return candidate;
+};
+
+},{"./parsers":46,"./senders":45}],30:[function(require,module,exports){
 var SENDERS = require('./senders');
 
 
@@ -6082,231 +6316,83 @@ exports.toCandidateSDP = function (candidate) {
     return 'a=candidate:' + sdp.join(' ');
 };
 
-},{"./senders":45}],30:[function(require,module,exports){
-var SENDERS = require('./senders');
-var parsers = require('./parsers');
-var idCounter = Math.random();
+},{"./senders":45}],41:[function(require,module,exports){
+/**
+ * lodash 3.7.2 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
 
+/**
+ * The base implementation of `get` without support for string paths
+ * and default values.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {Array} path The path of the property to get.
+ * @param {string} [pathKey] The key representation of path.
+ * @returns {*} Returns the resolved value.
+ */
+function baseGet(object, path, pathKey) {
+  if (object == null) {
+    return;
+  }
+  if (pathKey !== undefined && pathKey in toObject(object)) {
+    path = [pathKey];
+  }
+  var index = 0,
+      length = path.length;
 
-exports._setIdCounter = function (counter) {
-    idCounter = counter;
-};
+  while (object != null && index < length) {
+    object = object[path[index++]];
+  }
+  return (index && index == length) ? object : undefined;
+}
 
-exports.toSessionJSON = function (sdp, opts) {
-    var i;
-    var creators = opts.creators || [];
-    var role = opts.role || 'initiator';
-    var direction = opts.direction || 'outgoing';
+/**
+ * Converts `value` to an object if it's not one.
+ *
+ * @private
+ * @param {*} value The value to process.
+ * @returns {Object} Returns the object.
+ */
+function toObject(value) {
+  return isObject(value) ? value : Object(value);
+}
 
+/**
+ * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
+ * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(1);
+ * // => false
+ */
+function isObject(value) {
+  // Avoid a V8 JIT bug in Chrome 19-20.
+  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
 
-    // Divide the SDP into session and media sections.
-    var media = sdp.split('\r\nm=');
-    for (i = 1; i < media.length; i++) {
-        media[i] = 'm=' + media[i];
-        if (i !== media.length - 1) {
-            media[i] += '\r\n';
-        }
-    }
-    var session = media.shift() + '\r\n';
-    var sessionLines = parsers.lines(session);
-    var parsed = {};
+module.exports = baseGet;
 
-    var contents = [];
-    for (i = 0; i < media.length; i++) {
-        contents.push(exports.toMediaJSON(media[i], session, {
-            role: role,
-            direction: direction,
-            creator: creators[i] || 'initiator'
-        }));
-    }
-    parsed.contents = contents;
-
-    var groupLines = parsers.findLines('a=group:', sessionLines);
-    if (groupLines.length) {
-        parsed.groups = parsers.groups(groupLines);
-    }
-
-    return parsed;
-};
-
-exports.toMediaJSON = function (media, session, opts) {
-    var creator = opts.creator || 'initiator';
-    var role = opts.role || 'initiator';
-    var direction = opts.direction || 'outgoing';
-
-    var lines = parsers.lines(media);
-    var sessionLines = parsers.lines(session);
-    var mline = parsers.mline(lines[0]);
-
-    var content = {
-        creator: creator,
-        name: mline.media,
-        description: {
-            descType: 'rtp',
-            media: mline.media,
-            payloads: [],
-            encryption: [],
-            feedback: [],
-            headerExtensions: []
-        },
-        transport: {
-            transType: 'iceUdp',
-            candidates: [],
-            fingerprints: []
-        }
-    };
-    if (mline.media == 'application') {
-        // FIXME: the description is most likely to be independent
-        // of the SDP and should be processed by other parts of the library
-        content.description = {
-            descType: 'datachannel'
-        };
-        content.transport.sctp = [];
-    }
-    var desc = content.description;
-    var trans = content.transport;
-
-    // If we have a mid, use that for the content name instead.
-    var mid = parsers.findLine('a=mid:', lines);
-    if (mid) {
-        content.name = mid.substr(6);
-    }
-
-    if (parsers.findLine('a=sendrecv', lines, sessionLines)) {
-        content.senders = 'both';
-    } else if (parsers.findLine('a=sendonly', lines, sessionLines)) {
-        content.senders = SENDERS[role][direction].sendonly;
-    } else if (parsers.findLine('a=recvonly', lines, sessionLines)) {
-        content.senders = SENDERS[role][direction].recvonly;
-    } else if (parsers.findLine('a=inactive', lines, sessionLines)) {
-        content.senders = 'none';
-    }
-
-    if (desc.descType == 'rtp') {
-        var bandwidth = parsers.findLine('b=', lines);
-        if (bandwidth) {
-            desc.bandwidth = parsers.bandwidth(bandwidth);
-        }
-
-        var ssrc = parsers.findLine('a=ssrc:', lines);
-        if (ssrc) {
-            desc.ssrc = ssrc.substr(7).split(' ')[0];
-        }
-
-        var rtpmapLines = parsers.findLines('a=rtpmap:', lines);
-        rtpmapLines.forEach(function (line) {
-            var payload = parsers.rtpmap(line);
-            payload.parameters = [];
-            payload.feedback = [];
-
-            var fmtpLines = parsers.findLines('a=fmtp:' + payload.id, lines);
-            // There should only be one fmtp line per payload
-            fmtpLines.forEach(function (line) {
-                payload.parameters = parsers.fmtp(line);
-            });
-
-            var fbLines = parsers.findLines('a=rtcp-fb:' + payload.id, lines);
-            fbLines.forEach(function (line) {
-                payload.feedback.push(parsers.rtcpfb(line));
-            });
-
-            desc.payloads.push(payload);
-        });
-
-        var cryptoLines = parsers.findLines('a=crypto:', lines, sessionLines);
-        cryptoLines.forEach(function (line) {
-            desc.encryption.push(parsers.crypto(line));
-        });
-
-        if (parsers.findLine('a=rtcp-mux', lines)) {
-            desc.mux = true;
-        }
-
-        var fbLines = parsers.findLines('a=rtcp-fb:*', lines);
-        fbLines.forEach(function (line) {
-            desc.feedback.push(parsers.rtcpfb(line));
-        });
-
-        var extLines = parsers.findLines('a=extmap:', lines);
-        extLines.forEach(function (line) {
-            var ext = parsers.extmap(line);
-
-            ext.senders = SENDERS[role][direction][ext.senders];
-
-            desc.headerExtensions.push(ext);
-        });
-
-        var ssrcGroupLines = parsers.findLines('a=ssrc-group:', lines);
-        desc.sourceGroups = parsers.sourceGroups(ssrcGroupLines || []);
-
-        var ssrcLines = parsers.findLines('a=ssrc:', lines);
-        var sources = desc.sources = parsers.sources(ssrcLines || []);
-
-        var msidLine = parsers.findLine('a=msid:', lines);
-        if (msidLine) {
-            var msid = parsers.msid(msidLine);
-            ['msid', 'mslabel', 'label'].forEach(function (key) {
-                for (var i = 0; i < sources.length; i++) {
-                    var found = false;
-                    for (var j = 0; j < sources[i].parameters.length; j++) {
-                        if (sources[i].parameters[j].key === key) {
-                            found = true;
-                        }
-                    }
-                    if (!found) {
-                        sources[i].parameters.push({ key: key, value: msid[key] });
-                    }
-                }
-            });
-        }
-
-        if (parsers.findLine('a=x-google-flag:conference', lines, sessionLines)) {
-            desc.googConferenceFlag = true;
-        }
-    }
-
-    // transport specific attributes
-    var fingerprintLines = parsers.findLines('a=fingerprint:', lines, sessionLines);
-    var setup = parsers.findLine('a=setup:', lines, sessionLines);
-    fingerprintLines.forEach(function (line) {
-        var fp = parsers.fingerprint(line);
-        if (setup) {
-            fp.setup = setup.substr(8);
-        }
-        trans.fingerprints.push(fp);
-    });
-
-    var ufragLine = parsers.findLine('a=ice-ufrag:', lines, sessionLines);
-    var pwdLine = parsers.findLine('a=ice-pwd:', lines, sessionLines);
-    if (ufragLine && pwdLine) {
-        trans.ufrag = ufragLine.substr(12);
-        trans.pwd = pwdLine.substr(10);
-        trans.candidates = [];
-
-        var candidateLines = parsers.findLines('a=candidate:', lines, sessionLines);
-        candidateLines.forEach(function (line) {
-            trans.candidates.push(exports.toCandidateJSON(line));
-        });
-    }
-
-    if (desc.descType == 'datachannel') {
-        var sctpmapLines = parsers.findLines('a=sctpmap:', lines);
-        sctpmapLines.forEach(function (line) {
-            var sctp = parsers.sctpmap(line);
-            trans.sctp.push(sctp);
-        });
-    }
-
-    return content;
-};
-
-exports.toCandidateJSON = function (line) {
-    var candidate = parsers.candidate(line.split('\r\n')[0]);
-    candidate.id = (idCounter++).toString(36).substr(0, 12);
-    return candidate;
-};
-
-},{"./parsers":46,"./senders":45}],39:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -6490,82 +6576,6 @@ module.exports = isArray;
 
 },{}],37:[function(require,module,exports){
 /**
- * lodash 3.7.2 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-
-/**
- * The base implementation of `get` without support for string paths
- * and default values.
- *
- * @private
- * @param {Object} object The object to query.
- * @param {Array} path The path of the property to get.
- * @param {string} [pathKey] The key representation of path.
- * @returns {*} Returns the resolved value.
- */
-function baseGet(object, path, pathKey) {
-  if (object == null) {
-    return;
-  }
-  if (pathKey !== undefined && pathKey in toObject(object)) {
-    path = [pathKey];
-  }
-  var index = 0,
-      length = path.length;
-
-  while (object != null && index < length) {
-    object = object[path[index++]];
-  }
-  return (index && index == length) ? object : undefined;
-}
-
-/**
- * Converts `value` to an object if it's not one.
- *
- * @private
- * @param {*} value The value to process.
- * @returns {Object} Returns the object.
- */
-function toObject(value) {
-  return isObject(value) ? value : Object(value);
-}
-
-/**
- * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
- * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an object, else `false`.
- * @example
- *
- * _.isObject({});
- * // => true
- *
- * _.isObject([1, 2, 3]);
- * // => true
- *
- * _.isObject(1);
- * // => false
- */
-function isObject(value) {
-  // Avoid a V8 JIT bug in Chrome 19-20.
-  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
-  var type = typeof value;
-  return !!value && (type == 'object' || type == 'function');
-}
-
-module.exports = baseGet;
-
-},{}],41:[function(require,module,exports){
-/**
  * lodash 3.0.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
  * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
@@ -6597,7 +6607,7 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],43:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 /**
  * lodash 3.0.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -6664,7 +6674,7 @@ function identity(value) {
 
 module.exports = bindCallback;
 
-},{}],44:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -6921,7 +6931,394 @@ function url(uri, loc){
   return obj;
 }
 
-},{"debug":34,"parseuri":47}],32:[function(require,module,exports){
+},{"debug":34,"parseuri":47}],33:[function(require,module,exports){
+
+/**
+ * Module dependencies.
+ */
+
+var parser = require('socket.io-parser');
+var Emitter = require('component-emitter');
+var toArray = require('to-array');
+var on = require('./on');
+var bind = require('component-bind');
+var debug = require('debug')('socket.io-client:socket');
+var hasBin = require('has-binary');
+
+/**
+ * Module exports.
+ */
+
+module.exports = exports = Socket;
+
+/**
+ * Internal events (blacklisted).
+ * These events can't be emitted by the user.
+ *
+ * @api private
+ */
+
+var events = {
+  connect: 1,
+  connect_error: 1,
+  connect_timeout: 1,
+  disconnect: 1,
+  error: 1,
+  reconnect: 1,
+  reconnect_attempt: 1,
+  reconnect_failed: 1,
+  reconnect_error: 1,
+  reconnecting: 1
+};
+
+/**
+ * Shortcut to `Emitter#emit`.
+ */
+
+var emit = Emitter.prototype.emit;
+
+/**
+ * `Socket` constructor.
+ *
+ * @api public
+ */
+
+function Socket(io, nsp){
+  this.io = io;
+  this.nsp = nsp;
+  this.json = this; // compat
+  this.ids = 0;
+  this.acks = {};
+  if (this.io.autoConnect) this.open();
+  this.receiveBuffer = [];
+  this.sendBuffer = [];
+  this.connected = false;
+  this.disconnected = true;
+}
+
+/**
+ * Mix in `Emitter`.
+ */
+
+Emitter(Socket.prototype);
+
+/**
+ * Subscribe to open, close and packet events
+ *
+ * @api private
+ */
+
+Socket.prototype.subEvents = function() {
+  if (this.subs) return;
+
+  var io = this.io;
+  this.subs = [
+    on(io, 'open', bind(this, 'onopen')),
+    on(io, 'packet', bind(this, 'onpacket')),
+    on(io, 'close', bind(this, 'onclose'))
+  ];
+};
+
+/**
+ * "Opens" the socket.
+ *
+ * @api public
+ */
+
+Socket.prototype.open =
+Socket.prototype.connect = function(){
+  if (this.connected) return this;
+
+  this.subEvents();
+  this.io.open(); // ensure open
+  if ('open' == this.io.readyState) this.onopen();
+  return this;
+};
+
+/**
+ * Sends a `message` event.
+ *
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.send = function(){
+  var args = toArray(arguments);
+  args.unshift('message');
+  this.emit.apply(this, args);
+  return this;
+};
+
+/**
+ * Override `emit`.
+ * If the event is in `events`, it's emitted normally.
+ *
+ * @param {String} event name
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.emit = function(ev){
+  if (events.hasOwnProperty(ev)) {
+    emit.apply(this, arguments);
+    return this;
+  }
+
+  var args = toArray(arguments);
+  var parserType = parser.EVENT; // default
+  if (hasBin(args)) { parserType = parser.BINARY_EVENT; } // binary
+  var packet = { type: parserType, data: args };
+
+  // event ack callback
+  if ('function' == typeof args[args.length - 1]) {
+    debug('emitting packet with ack id %d', this.ids);
+    this.acks[this.ids] = args.pop();
+    packet.id = this.ids++;
+  }
+
+  if (this.connected) {
+    this.packet(packet);
+  } else {
+    this.sendBuffer.push(packet);
+  }
+
+  return this;
+};
+
+/**
+ * Sends a packet.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.packet = function(packet){
+  packet.nsp = this.nsp;
+  this.io.packet(packet);
+};
+
+/**
+ * Called upon engine `open`.
+ *
+ * @api private
+ */
+
+Socket.prototype.onopen = function(){
+  debug('transport is open - connecting');
+
+  // write connect packet if necessary
+  if ('/' != this.nsp) {
+    this.packet({ type: parser.CONNECT });
+  }
+};
+
+/**
+ * Called upon engine `close`.
+ *
+ * @param {String} reason
+ * @api private
+ */
+
+Socket.prototype.onclose = function(reason){
+  debug('close (%s)', reason);
+  this.connected = false;
+  this.disconnected = true;
+  delete this.id;
+  this.emit('disconnect', reason);
+};
+
+/**
+ * Called with socket packet.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.onpacket = function(packet){
+  if (packet.nsp != this.nsp) return;
+
+  switch (packet.type) {
+    case parser.CONNECT:
+      this.onconnect();
+      break;
+
+    case parser.EVENT:
+      this.onevent(packet);
+      break;
+
+    case parser.BINARY_EVENT:
+      this.onevent(packet);
+      break;
+
+    case parser.ACK:
+      this.onack(packet);
+      break;
+
+    case parser.BINARY_ACK:
+      this.onack(packet);
+      break;
+
+    case parser.DISCONNECT:
+      this.ondisconnect();
+      break;
+
+    case parser.ERROR:
+      this.emit('error', packet.data);
+      break;
+  }
+};
+
+/**
+ * Called upon a server event.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.onevent = function(packet){
+  var args = packet.data || [];
+  debug('emitting event %j', args);
+
+  if (null != packet.id) {
+    debug('attaching ack callback to event');
+    args.push(this.ack(packet.id));
+  }
+
+  if (this.connected) {
+    emit.apply(this, args);
+  } else {
+    this.receiveBuffer.push(args);
+  }
+};
+
+/**
+ * Produces an ack callback to emit with an event.
+ *
+ * @api private
+ */
+
+Socket.prototype.ack = function(id){
+  var self = this;
+  var sent = false;
+  return function(){
+    // prevent double callbacks
+    if (sent) return;
+    sent = true;
+    var args = toArray(arguments);
+    debug('sending ack %j', args);
+
+    var type = hasBin(args) ? parser.BINARY_ACK : parser.ACK;
+    self.packet({
+      type: type,
+      id: id,
+      data: args
+    });
+  };
+};
+
+/**
+ * Called upon a server acknowlegement.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.onack = function(packet){
+  debug('calling ack %s with %j', packet.id, packet.data);
+  var fn = this.acks[packet.id];
+  fn.apply(this, packet.data);
+  delete this.acks[packet.id];
+};
+
+/**
+ * Called upon server connect.
+ *
+ * @api private
+ */
+
+Socket.prototype.onconnect = function(){
+  this.connected = true;
+  this.disconnected = false;
+  this.emit('connect');
+  this.emitBuffered();
+};
+
+/**
+ * Emit buffered events (received and emitted).
+ *
+ * @api private
+ */
+
+Socket.prototype.emitBuffered = function(){
+  var i;
+  for (i = 0; i < this.receiveBuffer.length; i++) {
+    emit.apply(this, this.receiveBuffer[i]);
+  }
+  this.receiveBuffer = [];
+
+  for (i = 0; i < this.sendBuffer.length; i++) {
+    this.packet(this.sendBuffer[i]);
+  }
+  this.sendBuffer = [];
+};
+
+/**
+ * Called upon server disconnect.
+ *
+ * @api private
+ */
+
+Socket.prototype.ondisconnect = function(){
+  debug('server disconnect (%s)', this.nsp);
+  this.destroy();
+  this.onclose('io server disconnect');
+};
+
+/**
+ * Called upon forced client/server side disconnections,
+ * this method ensures the manager stops tracking us and
+ * that reconnections don't get triggered for this.
+ *
+ * @api private.
+ */
+
+Socket.prototype.destroy = function(){
+  if (this.subs) {
+    // clean subscriptions to avoid reconnections
+    for (var i = 0; i < this.subs.length; i++) {
+      this.subs[i].destroy();
+    }
+    this.subs = null;
+  }
+
+  this.io.destroy(this);
+};
+
+/**
+ * Disconnects the socket manually.
+ *
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.close =
+Socket.prototype.disconnect = function(){
+  if (this.connected) {
+    debug('performing disconnect (%s)', this.nsp);
+    this.packet({ type: parser.DISCONNECT });
+  }
+
+  // remove socket from pool
+  this.destroy();
+
+  if (this.connected) {
+    // fire events
+    this.onclose('io client disconnect');
+  }
+  return this;
+};
+
+},{"./on":36,"component-bind":49,"component-emitter":48,"debug":34,"has-binary":51,"socket.io-parser":35,"to-array":50}],32:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -7426,394 +7823,7 @@ Manager.prototype.onreconnect = function(){
   this.emitAll('reconnect', attempt);
 };
 
-},{"./on":36,"./socket":33,"./url":31,"backo2":52,"component-bind":49,"component-emitter":48,"debug":34,"engine.io-client":50,"indexof":53,"object-component":51,"socket.io-parser":35}],33:[function(require,module,exports){
-
-/**
- * Module dependencies.
- */
-
-var parser = require('socket.io-parser');
-var Emitter = require('component-emitter');
-var toArray = require('to-array');
-var on = require('./on');
-var bind = require('component-bind');
-var debug = require('debug')('socket.io-client:socket');
-var hasBin = require('has-binary');
-
-/**
- * Module exports.
- */
-
-module.exports = exports = Socket;
-
-/**
- * Internal events (blacklisted).
- * These events can't be emitted by the user.
- *
- * @api private
- */
-
-var events = {
-  connect: 1,
-  connect_error: 1,
-  connect_timeout: 1,
-  disconnect: 1,
-  error: 1,
-  reconnect: 1,
-  reconnect_attempt: 1,
-  reconnect_failed: 1,
-  reconnect_error: 1,
-  reconnecting: 1
-};
-
-/**
- * Shortcut to `Emitter#emit`.
- */
-
-var emit = Emitter.prototype.emit;
-
-/**
- * `Socket` constructor.
- *
- * @api public
- */
-
-function Socket(io, nsp){
-  this.io = io;
-  this.nsp = nsp;
-  this.json = this; // compat
-  this.ids = 0;
-  this.acks = {};
-  if (this.io.autoConnect) this.open();
-  this.receiveBuffer = [];
-  this.sendBuffer = [];
-  this.connected = false;
-  this.disconnected = true;
-}
-
-/**
- * Mix in `Emitter`.
- */
-
-Emitter(Socket.prototype);
-
-/**
- * Subscribe to open, close and packet events
- *
- * @api private
- */
-
-Socket.prototype.subEvents = function() {
-  if (this.subs) return;
-
-  var io = this.io;
-  this.subs = [
-    on(io, 'open', bind(this, 'onopen')),
-    on(io, 'packet', bind(this, 'onpacket')),
-    on(io, 'close', bind(this, 'onclose'))
-  ];
-};
-
-/**
- * "Opens" the socket.
- *
- * @api public
- */
-
-Socket.prototype.open =
-Socket.prototype.connect = function(){
-  if (this.connected) return this;
-
-  this.subEvents();
-  this.io.open(); // ensure open
-  if ('open' == this.io.readyState) this.onopen();
-  return this;
-};
-
-/**
- * Sends a `message` event.
- *
- * @return {Socket} self
- * @api public
- */
-
-Socket.prototype.send = function(){
-  var args = toArray(arguments);
-  args.unshift('message');
-  this.emit.apply(this, args);
-  return this;
-};
-
-/**
- * Override `emit`.
- * If the event is in `events`, it's emitted normally.
- *
- * @param {String} event name
- * @return {Socket} self
- * @api public
- */
-
-Socket.prototype.emit = function(ev){
-  if (events.hasOwnProperty(ev)) {
-    emit.apply(this, arguments);
-    return this;
-  }
-
-  var args = toArray(arguments);
-  var parserType = parser.EVENT; // default
-  if (hasBin(args)) { parserType = parser.BINARY_EVENT; } // binary
-  var packet = { type: parserType, data: args };
-
-  // event ack callback
-  if ('function' == typeof args[args.length - 1]) {
-    debug('emitting packet with ack id %d', this.ids);
-    this.acks[this.ids] = args.pop();
-    packet.id = this.ids++;
-  }
-
-  if (this.connected) {
-    this.packet(packet);
-  } else {
-    this.sendBuffer.push(packet);
-  }
-
-  return this;
-};
-
-/**
- * Sends a packet.
- *
- * @param {Object} packet
- * @api private
- */
-
-Socket.prototype.packet = function(packet){
-  packet.nsp = this.nsp;
-  this.io.packet(packet);
-};
-
-/**
- * Called upon engine `open`.
- *
- * @api private
- */
-
-Socket.prototype.onopen = function(){
-  debug('transport is open - connecting');
-
-  // write connect packet if necessary
-  if ('/' != this.nsp) {
-    this.packet({ type: parser.CONNECT });
-  }
-};
-
-/**
- * Called upon engine `close`.
- *
- * @param {String} reason
- * @api private
- */
-
-Socket.prototype.onclose = function(reason){
-  debug('close (%s)', reason);
-  this.connected = false;
-  this.disconnected = true;
-  delete this.id;
-  this.emit('disconnect', reason);
-};
-
-/**
- * Called with socket packet.
- *
- * @param {Object} packet
- * @api private
- */
-
-Socket.prototype.onpacket = function(packet){
-  if (packet.nsp != this.nsp) return;
-
-  switch (packet.type) {
-    case parser.CONNECT:
-      this.onconnect();
-      break;
-
-    case parser.EVENT:
-      this.onevent(packet);
-      break;
-
-    case parser.BINARY_EVENT:
-      this.onevent(packet);
-      break;
-
-    case parser.ACK:
-      this.onack(packet);
-      break;
-
-    case parser.BINARY_ACK:
-      this.onack(packet);
-      break;
-
-    case parser.DISCONNECT:
-      this.ondisconnect();
-      break;
-
-    case parser.ERROR:
-      this.emit('error', packet.data);
-      break;
-  }
-};
-
-/**
- * Called upon a server event.
- *
- * @param {Object} packet
- * @api private
- */
-
-Socket.prototype.onevent = function(packet){
-  var args = packet.data || [];
-  debug('emitting event %j', args);
-
-  if (null != packet.id) {
-    debug('attaching ack callback to event');
-    args.push(this.ack(packet.id));
-  }
-
-  if (this.connected) {
-    emit.apply(this, args);
-  } else {
-    this.receiveBuffer.push(args);
-  }
-};
-
-/**
- * Produces an ack callback to emit with an event.
- *
- * @api private
- */
-
-Socket.prototype.ack = function(id){
-  var self = this;
-  var sent = false;
-  return function(){
-    // prevent double callbacks
-    if (sent) return;
-    sent = true;
-    var args = toArray(arguments);
-    debug('sending ack %j', args);
-
-    var type = hasBin(args) ? parser.BINARY_ACK : parser.ACK;
-    self.packet({
-      type: type,
-      id: id,
-      data: args
-    });
-  };
-};
-
-/**
- * Called upon a server acknowlegement.
- *
- * @param {Object} packet
- * @api private
- */
-
-Socket.prototype.onack = function(packet){
-  debug('calling ack %s with %j', packet.id, packet.data);
-  var fn = this.acks[packet.id];
-  fn.apply(this, packet.data);
-  delete this.acks[packet.id];
-};
-
-/**
- * Called upon server connect.
- *
- * @api private
- */
-
-Socket.prototype.onconnect = function(){
-  this.connected = true;
-  this.disconnected = false;
-  this.emit('connect');
-  this.emitBuffered();
-};
-
-/**
- * Emit buffered events (received and emitted).
- *
- * @api private
- */
-
-Socket.prototype.emitBuffered = function(){
-  var i;
-  for (i = 0; i < this.receiveBuffer.length; i++) {
-    emit.apply(this, this.receiveBuffer[i]);
-  }
-  this.receiveBuffer = [];
-
-  for (i = 0; i < this.sendBuffer.length; i++) {
-    this.packet(this.sendBuffer[i]);
-  }
-  this.sendBuffer = [];
-};
-
-/**
- * Called upon server disconnect.
- *
- * @api private
- */
-
-Socket.prototype.ondisconnect = function(){
-  debug('server disconnect (%s)', this.nsp);
-  this.destroy();
-  this.onclose('io server disconnect');
-};
-
-/**
- * Called upon forced client/server side disconnections,
- * this method ensures the manager stops tracking us and
- * that reconnections don't get triggered for this.
- *
- * @api private.
- */
-
-Socket.prototype.destroy = function(){
-  if (this.subs) {
-    // clean subscriptions to avoid reconnections
-    for (var i = 0; i < this.subs.length; i++) {
-      this.subs[i].destroy();
-    }
-    this.subs = null;
-  }
-
-  this.io.destroy(this);
-};
-
-/**
- * Disconnects the socket manually.
- *
- * @return {Socket} self
- * @api public
- */
-
-Socket.prototype.close =
-Socket.prototype.disconnect = function(){
-  if (this.connected) {
-    debug('performing disconnect (%s)', this.nsp);
-    this.packet({ type: parser.DISCONNECT });
-  }
-
-  // remove socket from pool
-  this.destroy();
-
-  if (this.connected) {
-    // fire events
-    this.onclose('io client disconnect');
-  }
-  return this;
-};
-
-},{"./on":36,"component-bind":49,"component-emitter":48,"debug":34,"has-binary":55,"socket.io-parser":35,"to-array":54}],45:[function(require,module,exports){
+},{"./on":36,"./socket":33,"./url":31,"backo2":54,"component-bind":49,"component-emitter":48,"debug":34,"engine.io-client":53,"indexof":55,"object-component":52,"socket.io-parser":35}],45:[function(require,module,exports){
 module.exports = {
     initiator: {
         incoming: {
@@ -8132,7 +8142,173 @@ exports.msid = function (line) {
     };
 };
 
-},{}],25:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
+
+/**
+ * Expose `Emitter`.
+ */
+
+module.exports = Emitter;
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+};
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
+}
+
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks[event] = this._callbacks[event] || [])
+    .push(fn);
+  return this;
+};
+
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  var self = this;
+  this._callbacks = this._callbacks || {};
+
+  function on() {
+    self.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks[event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks[event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
+  return this;
+};
+
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+  var args = [].slice.call(arguments, 1)
+    , callbacks = this._callbacks[event];
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks[event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+
+},{}],26:[function(require,module,exports){
 // based on https://github.com/ESTOS/strophe.jingle/
 // adds wildemitter support
 var util = require('util');
@@ -8345,173 +8521,7 @@ TraceablePeerConnection.prototype.getStats = function () {
 
 module.exports = TraceablePeerConnection;
 
-},{"util":8,"webrtc-adapter-test":23,"wildemitter":5}],48:[function(require,module,exports){
-
-/**
- * Expose `Emitter`.
- */
-
-module.exports = Emitter;
-
-/**
- * Initialize a new `Emitter`.
- *
- * @api public
- */
-
-function Emitter(obj) {
-  if (obj) return mixin(obj);
-};
-
-/**
- * Mixin the emitter properties.
- *
- * @param {Object} obj
- * @return {Object}
- * @api private
- */
-
-function mixin(obj) {
-  for (var key in Emitter.prototype) {
-    obj[key] = Emitter.prototype[key];
-  }
-  return obj;
-}
-
-/**
- * Listen on the given `event` with `fn`.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.on =
-Emitter.prototype.addEventListener = function(event, fn){
-  this._callbacks = this._callbacks || {};
-  (this._callbacks[event] = this._callbacks[event] || [])
-    .push(fn);
-  return this;
-};
-
-/**
- * Adds an `event` listener that will be invoked a single
- * time then automatically removed.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.once = function(event, fn){
-  var self = this;
-  this._callbacks = this._callbacks || {};
-
-  function on() {
-    self.off(event, on);
-    fn.apply(this, arguments);
-  }
-
-  on.fn = fn;
-  this.on(event, on);
-  return this;
-};
-
-/**
- * Remove the given callback for `event` or all
- * registered callbacks.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.off =
-Emitter.prototype.removeListener =
-Emitter.prototype.removeAllListeners =
-Emitter.prototype.removeEventListener = function(event, fn){
-  this._callbacks = this._callbacks || {};
-
-  // all
-  if (0 == arguments.length) {
-    this._callbacks = {};
-    return this;
-  }
-
-  // specific event
-  var callbacks = this._callbacks[event];
-  if (!callbacks) return this;
-
-  // remove all handlers
-  if (1 == arguments.length) {
-    delete this._callbacks[event];
-    return this;
-  }
-
-  // remove specific handler
-  var cb;
-  for (var i = 0; i < callbacks.length; i++) {
-    cb = callbacks[i];
-    if (cb === fn || cb.fn === fn) {
-      callbacks.splice(i, 1);
-      break;
-    }
-  }
-  return this;
-};
-
-/**
- * Emit `event` with the given args.
- *
- * @param {String} event
- * @param {Mixed} ...
- * @return {Emitter}
- */
-
-Emitter.prototype.emit = function(event){
-  this._callbacks = this._callbacks || {};
-  var args = [].slice.call(arguments, 1)
-    , callbacks = this._callbacks[event];
-
-  if (callbacks) {
-    callbacks = callbacks.slice(0);
-    for (var i = 0, len = callbacks.length; i < len; ++i) {
-      callbacks[i].apply(this, args);
-    }
-  }
-
-  return this;
-};
-
-/**
- * Return array of callbacks for `event`.
- *
- * @param {String} event
- * @return {Array}
- * @api public
- */
-
-Emitter.prototype.listeners = function(event){
-  this._callbacks = this._callbacks || {};
-  return this._callbacks[event] || [];
-};
-
-/**
- * Check if this emitter has `event` handlers.
- *
- * @param {String} event
- * @return {Boolean}
- * @api public
- */
-
-Emitter.prototype.hasListeners = function(event){
-  return !! this.listeners(event).length;
-};
-
-},{}],56:[function(require,module,exports){
+},{"util":8,"webrtc-adapter-test":23,"wildemitter":5}],56:[function(require,module,exports){
 var global=self;
 module.exports = isBuf;
 
@@ -8553,32 +8563,7 @@ module.exports = function parseuri(str) {
   return uri;
 };
 
-},{}],49:[function(require,module,exports){
-/**
- * Slice reference.
- */
-
-var slice = [].slice;
-
-/**
- * Bind `obj` to `fn`.
- *
- * @param {Object} obj
- * @param {Function|String} fn or string
- * @return {Function}
- * @api public
- */
-
-module.exports = function(obj, fn){
-  if ('string' == typeof fn) fn = obj[fn];
-  if ('function' != typeof fn) throw new Error('bind() requires a function');
-  var args = slice.call(arguments, 2);
-  return function(){
-    return fn.apply(obj, args.concat(slice.call(arguments)));
-  }
-};
-
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 
 /**
  * HOP ref.
@@ -8663,7 +8648,47 @@ exports.length = function(obj){
 exports.isEmpty = function(obj){
   return 0 == exports.length(obj);
 };
-},{}],52:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
+/**
+ * Slice reference.
+ */
+
+var slice = [].slice;
+
+/**
+ * Bind `obj` to `fn`.
+ *
+ * @param {Object} obj
+ * @param {Function|String} fn or string
+ * @return {Function}
+ * @api public
+ */
+
+module.exports = function(obj, fn){
+  if ('string' == typeof fn) fn = obj[fn];
+  if ('function' != typeof fn) throw new Error('bind() requires a function');
+  var args = slice.call(arguments, 2);
+  return function(){
+    return fn.apply(obj, args.concat(slice.call(arguments)));
+  }
+};
+
+},{}],50:[function(require,module,exports){
+module.exports = toArray
+
+function toArray(list, index) {
+    var array = []
+
+    index = index || 0
+
+    for (var i = index || 0; i < list.length; i++) {
+        array[i - index] = list[i]
+    }
+
+    return array
+}
+
+},{}],54:[function(require,module,exports){
 
 /**
  * Expose `Backoff`.
@@ -8750,7 +8775,7 @@ Backoff.prototype.setJitter = function(jitter){
 };
 
 
-},{}],53:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 
 var indexOf = [].indexOf;
 
@@ -8761,429 +8786,12 @@ module.exports = function(arr, obj){
   }
   return -1;
 };
-},{}],54:[function(require,module,exports){
-module.exports = toArray
-
-function toArray(list, index) {
-    var array = []
-
-    index = index || 0
-
-    for (var i = index || 0; i < list.length; i++) {
-        array[i - index] = list[i]
-    }
-
-    return array
-}
-
 },{}],57:[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],35:[function(require,module,exports){
-
-/**
- * Module dependencies.
- */
-
-var debug = require('debug')('socket.io-parser');
-var json = require('json3');
-var isArray = require('isarray');
-var Emitter = require('component-emitter');
-var binary = require('./binary');
-var isBuf = require('./is-buffer');
-
-/**
- * Protocol version.
- *
- * @api public
- */
-
-exports.protocol = 4;
-
-/**
- * Packet types.
- *
- * @api public
- */
-
-exports.types = [
-  'CONNECT',
-  'DISCONNECT',
-  'EVENT',
-  'BINARY_EVENT',
-  'ACK',
-  'BINARY_ACK',
-  'ERROR'
-];
-
-/**
- * Packet type `connect`.
- *
- * @api public
- */
-
-exports.CONNECT = 0;
-
-/**
- * Packet type `disconnect`.
- *
- * @api public
- */
-
-exports.DISCONNECT = 1;
-
-/**
- * Packet type `event`.
- *
- * @api public
- */
-
-exports.EVENT = 2;
-
-/**
- * Packet type `ack`.
- *
- * @api public
- */
-
-exports.ACK = 3;
-
-/**
- * Packet type `error`.
- *
- * @api public
- */
-
-exports.ERROR = 4;
-
-/**
- * Packet type 'binary event'
- *
- * @api public
- */
-
-exports.BINARY_EVENT = 5;
-
-/**
- * Packet type `binary ack`. For acks with binary arguments.
- *
- * @api public
- */
-
-exports.BINARY_ACK = 6;
-
-/**
- * Encoder constructor.
- *
- * @api public
- */
-
-exports.Encoder = Encoder;
-
-/**
- * Decoder constructor.
- *
- * @api public
- */
-
-exports.Decoder = Decoder;
-
-/**
- * A socket.io Encoder instance
- *
- * @api public
- */
-
-function Encoder() {}
-
-/**
- * Encode a packet as a single string if non-binary, or as a
- * buffer sequence, depending on packet type.
- *
- * @param {Object} obj - packet object
- * @param {Function} callback - function to handle encodings (likely engine.write)
- * @return Calls callback with Array of encodings
- * @api public
- */
-
-Encoder.prototype.encode = function(obj, callback){
-  debug('encoding packet %j', obj);
-
-  if (exports.BINARY_EVENT == obj.type || exports.BINARY_ACK == obj.type) {
-    encodeAsBinary(obj, callback);
-  }
-  else {
-    var encoding = encodeAsString(obj);
-    callback([encoding]);
-  }
-};
-
-/**
- * Encode packet as string.
- *
- * @param {Object} packet
- * @return {String} encoded
- * @api private
- */
-
-function encodeAsString(obj) {
-  var str = '';
-  var nsp = false;
-
-  // first is type
-  str += obj.type;
-
-  // attachments if we have them
-  if (exports.BINARY_EVENT == obj.type || exports.BINARY_ACK == obj.type) {
-    str += obj.attachments;
-    str += '-';
-  }
-
-  // if we have a namespace other than `/`
-  // we append it followed by a comma `,`
-  if (obj.nsp && '/' != obj.nsp) {
-    nsp = true;
-    str += obj.nsp;
-  }
-
-  // immediately followed by the id
-  if (null != obj.id) {
-    if (nsp) {
-      str += ',';
-      nsp = false;
-    }
-    str += obj.id;
-  }
-
-  // json data
-  if (null != obj.data) {
-    if (nsp) str += ',';
-    str += json.stringify(obj.data);
-  }
-
-  debug('encoded %j as %s', obj, str);
-  return str;
-}
-
-/**
- * Encode packet as 'buffer sequence' by removing blobs, and
- * deconstructing packet into object with placeholders and
- * a list of buffers.
- *
- * @param {Object} packet
- * @return {Buffer} encoded
- * @api private
- */
-
-function encodeAsBinary(obj, callback) {
-
-  function writeEncoding(bloblessData) {
-    var deconstruction = binary.deconstructPacket(bloblessData);
-    var pack = encodeAsString(deconstruction.packet);
-    var buffers = deconstruction.buffers;
-
-    buffers.unshift(pack); // add packet info to beginning of data list
-    callback(buffers); // write all the buffers
-  }
-
-  binary.removeBlobs(obj, writeEncoding);
-}
-
-/**
- * A socket.io Decoder instance
- *
- * @return {Object} decoder
- * @api public
- */
-
-function Decoder() {
-  this.reconstructor = null;
-}
-
-/**
- * Mix in `Emitter` with Decoder.
- */
-
-Emitter(Decoder.prototype);
-
-/**
- * Decodes an ecoded packet string into packet JSON.
- *
- * @param {String} obj - encoded packet
- * @return {Object} packet
- * @api public
- */
-
-Decoder.prototype.add = function(obj) {
-  var packet;
-  if ('string' == typeof obj) {
-    packet = decodeString(obj);
-    if (exports.BINARY_EVENT == packet.type || exports.BINARY_ACK == packet.type) { // binary packet's json
-      this.reconstructor = new BinaryReconstructor(packet);
-
-      // no attachments, labeled binary but no binary data to follow
-      if (this.reconstructor.reconPack.attachments === 0) {
-        this.emit('decoded', packet);
-      }
-    } else { // non-binary full packet
-      this.emit('decoded', packet);
-    }
-  }
-  else if (isBuf(obj) || obj.base64) { // raw binary data
-    if (!this.reconstructor) {
-      throw new Error('got binary data when not reconstructing a packet');
-    } else {
-      packet = this.reconstructor.takeBinaryData(obj);
-      if (packet) { // received final buffer
-        this.reconstructor = null;
-        this.emit('decoded', packet);
-      }
-    }
-  }
-  else {
-    throw new Error('Unknown type: ' + obj);
-  }
-};
-
-/**
- * Decode a packet String (JSON data)
- *
- * @param {String} str
- * @return {Object} packet
- * @api private
- */
-
-function decodeString(str) {
-  var p = {};
-  var i = 0;
-
-  // look up type
-  p.type = Number(str.charAt(0));
-  if (null == exports.types[p.type]) return error();
-
-  // look up attachments if type binary
-  if (exports.BINARY_EVENT == p.type || exports.BINARY_ACK == p.type) {
-    var buf = '';
-    while (str.charAt(++i) != '-') {
-      buf += str.charAt(i);
-      if (i == str.length) break;
-    }
-    if (buf != Number(buf) || str.charAt(i) != '-') {
-      throw new Error('Illegal attachments');
-    }
-    p.attachments = Number(buf);
-  }
-
-  // look up namespace (if any)
-  if ('/' == str.charAt(i + 1)) {
-    p.nsp = '';
-    while (++i) {
-      var c = str.charAt(i);
-      if (',' == c) break;
-      p.nsp += c;
-      if (i == str.length) break;
-    }
-  } else {
-    p.nsp = '/';
-  }
-
-  // look up id
-  var next = str.charAt(i + 1);
-  if ('' !== next && Number(next) == next) {
-    p.id = '';
-    while (++i) {
-      var c = str.charAt(i);
-      if (null == c || Number(c) != c) {
-        --i;
-        break;
-      }
-      p.id += str.charAt(i);
-      if (i == str.length) break;
-    }
-    p.id = Number(p.id);
-  }
-
-  // look up json data
-  if (str.charAt(++i)) {
-    try {
-      p.data = json.parse(str.substr(i));
-    } catch(e){
-      return error();
-    }
-  }
-
-  debug('decoded %s as %j', str, p);
-  return p;
-}
-
-/**
- * Deallocates a parser's resources
- *
- * @api public
- */
-
-Decoder.prototype.destroy = function() {
-  if (this.reconstructor) {
-    this.reconstructor.finishedReconstruction();
-  }
-};
-
-/**
- * A manager of a binary event's 'buffer sequence'. Should
- * be constructed whenever a packet of type BINARY_EVENT is
- * decoded.
- *
- * @param {Object} packet
- * @return {BinaryReconstructor} initialized reconstructor
- * @api private
- */
-
-function BinaryReconstructor(packet) {
-  this.reconPack = packet;
-  this.buffers = [];
-}
-
-/**
- * Method to be called when binary data received from connection
- * after a BINARY_EVENT packet.
- *
- * @param {Buffer | ArrayBuffer} binData - the raw binary data received
- * @return {null | Object} returns null if more binary data is expected or
- *   a reconstructed packet object if all buffers have been received.
- * @api private
- */
-
-BinaryReconstructor.prototype.takeBinaryData = function(binData) {
-  this.buffers.push(binData);
-  if (this.buffers.length == this.reconPack.attachments) { // done with buffer list
-    var packet = binary.reconstructPacket(this.reconPack, this.buffers);
-    this.finishedReconstruction();
-    return packet;
-  }
-  return null;
-};
-
-/**
- * Cleans up binary packet reconstruction variables.
- *
- * @api private
- */
-
-BinaryReconstructor.prototype.finishedReconstruction = function() {
-  this.reconPack = null;
-  this.buffers = [];
-};
-
-function error(data){
-  return {
-    type: exports.ERROR,
-    data: 'parser error'
-  };
-}
-
-},{"./binary":58,"./is-buffer":56,"component-emitter":48,"debug":34,"isarray":57,"json3":59}],59:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 /*! JSON v3.2.6 | http://bestiejs.github.io/json3 | Copyright 2012-2013, Kit Cambridge | http://kit.mit-license.org */
 ;(function (window) {
   // Convenience aliases.
@@ -10046,7 +9654,409 @@ function error(data){
   }
 }(this));
 
-},{}],42:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
+
+/**
+ * Module dependencies.
+ */
+
+var debug = require('debug')('socket.io-parser');
+var json = require('json3');
+var isArray = require('isarray');
+var Emitter = require('component-emitter');
+var binary = require('./binary');
+var isBuf = require('./is-buffer');
+
+/**
+ * Protocol version.
+ *
+ * @api public
+ */
+
+exports.protocol = 4;
+
+/**
+ * Packet types.
+ *
+ * @api public
+ */
+
+exports.types = [
+  'CONNECT',
+  'DISCONNECT',
+  'EVENT',
+  'BINARY_EVENT',
+  'ACK',
+  'BINARY_ACK',
+  'ERROR'
+];
+
+/**
+ * Packet type `connect`.
+ *
+ * @api public
+ */
+
+exports.CONNECT = 0;
+
+/**
+ * Packet type `disconnect`.
+ *
+ * @api public
+ */
+
+exports.DISCONNECT = 1;
+
+/**
+ * Packet type `event`.
+ *
+ * @api public
+ */
+
+exports.EVENT = 2;
+
+/**
+ * Packet type `ack`.
+ *
+ * @api public
+ */
+
+exports.ACK = 3;
+
+/**
+ * Packet type `error`.
+ *
+ * @api public
+ */
+
+exports.ERROR = 4;
+
+/**
+ * Packet type 'binary event'
+ *
+ * @api public
+ */
+
+exports.BINARY_EVENT = 5;
+
+/**
+ * Packet type `binary ack`. For acks with binary arguments.
+ *
+ * @api public
+ */
+
+exports.BINARY_ACK = 6;
+
+/**
+ * Encoder constructor.
+ *
+ * @api public
+ */
+
+exports.Encoder = Encoder;
+
+/**
+ * Decoder constructor.
+ *
+ * @api public
+ */
+
+exports.Decoder = Decoder;
+
+/**
+ * A socket.io Encoder instance
+ *
+ * @api public
+ */
+
+function Encoder() {}
+
+/**
+ * Encode a packet as a single string if non-binary, or as a
+ * buffer sequence, depending on packet type.
+ *
+ * @param {Object} obj - packet object
+ * @param {Function} callback - function to handle encodings (likely engine.write)
+ * @return Calls callback with Array of encodings
+ * @api public
+ */
+
+Encoder.prototype.encode = function(obj, callback){
+  debug('encoding packet %j', obj);
+
+  if (exports.BINARY_EVENT == obj.type || exports.BINARY_ACK == obj.type) {
+    encodeAsBinary(obj, callback);
+  }
+  else {
+    var encoding = encodeAsString(obj);
+    callback([encoding]);
+  }
+};
+
+/**
+ * Encode packet as string.
+ *
+ * @param {Object} packet
+ * @return {String} encoded
+ * @api private
+ */
+
+function encodeAsString(obj) {
+  var str = '';
+  var nsp = false;
+
+  // first is type
+  str += obj.type;
+
+  // attachments if we have them
+  if (exports.BINARY_EVENT == obj.type || exports.BINARY_ACK == obj.type) {
+    str += obj.attachments;
+    str += '-';
+  }
+
+  // if we have a namespace other than `/`
+  // we append it followed by a comma `,`
+  if (obj.nsp && '/' != obj.nsp) {
+    nsp = true;
+    str += obj.nsp;
+  }
+
+  // immediately followed by the id
+  if (null != obj.id) {
+    if (nsp) {
+      str += ',';
+      nsp = false;
+    }
+    str += obj.id;
+  }
+
+  // json data
+  if (null != obj.data) {
+    if (nsp) str += ',';
+    str += json.stringify(obj.data);
+  }
+
+  debug('encoded %j as %s', obj, str);
+  return str;
+}
+
+/**
+ * Encode packet as 'buffer sequence' by removing blobs, and
+ * deconstructing packet into object with placeholders and
+ * a list of buffers.
+ *
+ * @param {Object} packet
+ * @return {Buffer} encoded
+ * @api private
+ */
+
+function encodeAsBinary(obj, callback) {
+
+  function writeEncoding(bloblessData) {
+    var deconstruction = binary.deconstructPacket(bloblessData);
+    var pack = encodeAsString(deconstruction.packet);
+    var buffers = deconstruction.buffers;
+
+    buffers.unshift(pack); // add packet info to beginning of data list
+    callback(buffers); // write all the buffers
+  }
+
+  binary.removeBlobs(obj, writeEncoding);
+}
+
+/**
+ * A socket.io Decoder instance
+ *
+ * @return {Object} decoder
+ * @api public
+ */
+
+function Decoder() {
+  this.reconstructor = null;
+}
+
+/**
+ * Mix in `Emitter` with Decoder.
+ */
+
+Emitter(Decoder.prototype);
+
+/**
+ * Decodes an ecoded packet string into packet JSON.
+ *
+ * @param {String} obj - encoded packet
+ * @return {Object} packet
+ * @api public
+ */
+
+Decoder.prototype.add = function(obj) {
+  var packet;
+  if ('string' == typeof obj) {
+    packet = decodeString(obj);
+    if (exports.BINARY_EVENT == packet.type || exports.BINARY_ACK == packet.type) { // binary packet's json
+      this.reconstructor = new BinaryReconstructor(packet);
+
+      // no attachments, labeled binary but no binary data to follow
+      if (this.reconstructor.reconPack.attachments === 0) {
+        this.emit('decoded', packet);
+      }
+    } else { // non-binary full packet
+      this.emit('decoded', packet);
+    }
+  }
+  else if (isBuf(obj) || obj.base64) { // raw binary data
+    if (!this.reconstructor) {
+      throw new Error('got binary data when not reconstructing a packet');
+    } else {
+      packet = this.reconstructor.takeBinaryData(obj);
+      if (packet) { // received final buffer
+        this.reconstructor = null;
+        this.emit('decoded', packet);
+      }
+    }
+  }
+  else {
+    throw new Error('Unknown type: ' + obj);
+  }
+};
+
+/**
+ * Decode a packet String (JSON data)
+ *
+ * @param {String} str
+ * @return {Object} packet
+ * @api private
+ */
+
+function decodeString(str) {
+  var p = {};
+  var i = 0;
+
+  // look up type
+  p.type = Number(str.charAt(0));
+  if (null == exports.types[p.type]) return error();
+
+  // look up attachments if type binary
+  if (exports.BINARY_EVENT == p.type || exports.BINARY_ACK == p.type) {
+    var buf = '';
+    while (str.charAt(++i) != '-') {
+      buf += str.charAt(i);
+      if (i == str.length) break;
+    }
+    if (buf != Number(buf) || str.charAt(i) != '-') {
+      throw new Error('Illegal attachments');
+    }
+    p.attachments = Number(buf);
+  }
+
+  // look up namespace (if any)
+  if ('/' == str.charAt(i + 1)) {
+    p.nsp = '';
+    while (++i) {
+      var c = str.charAt(i);
+      if (',' == c) break;
+      p.nsp += c;
+      if (i == str.length) break;
+    }
+  } else {
+    p.nsp = '/';
+  }
+
+  // look up id
+  var next = str.charAt(i + 1);
+  if ('' !== next && Number(next) == next) {
+    p.id = '';
+    while (++i) {
+      var c = str.charAt(i);
+      if (null == c || Number(c) != c) {
+        --i;
+        break;
+      }
+      p.id += str.charAt(i);
+      if (i == str.length) break;
+    }
+    p.id = Number(p.id);
+  }
+
+  // look up json data
+  if (str.charAt(++i)) {
+    try {
+      p.data = json.parse(str.substr(i));
+    } catch(e){
+      return error();
+    }
+  }
+
+  debug('decoded %s as %j', str, p);
+  return p;
+}
+
+/**
+ * Deallocates a parser's resources
+ *
+ * @api public
+ */
+
+Decoder.prototype.destroy = function() {
+  if (this.reconstructor) {
+    this.reconstructor.finishedReconstruction();
+  }
+};
+
+/**
+ * A manager of a binary event's 'buffer sequence'. Should
+ * be constructed whenever a packet of type BINARY_EVENT is
+ * decoded.
+ *
+ * @param {Object} packet
+ * @return {BinaryReconstructor} initialized reconstructor
+ * @api private
+ */
+
+function BinaryReconstructor(packet) {
+  this.reconPack = packet;
+  this.buffers = [];
+}
+
+/**
+ * Method to be called when binary data received from connection
+ * after a BINARY_EVENT packet.
+ *
+ * @param {Buffer | ArrayBuffer} binData - the raw binary data received
+ * @return {null | Object} returns null if more binary data is expected or
+ *   a reconstructed packet object if all buffers have been received.
+ * @api private
+ */
+
+BinaryReconstructor.prototype.takeBinaryData = function(binData) {
+  this.buffers.push(binData);
+  if (this.buffers.length == this.reconPack.attachments) { // done with buffer list
+    var packet = binary.reconstructPacket(this.reconPack, this.buffers);
+    this.finishedReconstruction();
+    return packet;
+  }
+  return null;
+};
+
+/**
+ * Cleans up binary packet reconstruction variables.
+ *
+ * @api private
+ */
+
+BinaryReconstructor.prototype.finishedReconstruction = function() {
+  this.reconPack = null;
+  this.buffers = [];
+};
+
+function error(data){
+  return {
+    type: exports.ERROR,
+    data: 'parser error'
+  };
+}
+
+},{"./binary":59,"./is-buffer":56,"component-emitter":48,"debug":34,"isarray":57,"json3":58}],39:[function(require,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10229,43 +10239,11 @@ function isObject(value) {
 
 module.exports = baseEach;
 
-},{"lodash.keys":60}],50:[function(require,module,exports){
+},{"lodash.keys":60}],53:[function(require,module,exports){
 
 module.exports =  require('./lib/');
 
-},{"./lib/":61}],62:[function(require,module,exports){
-/**
- * lodash 3.0.0 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.7.0 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-
-/**
- * A specialized version of `_.map` for arrays without support for callback
- * shorthands or `this` binding.
- *
- * @private
- * @param {Array} array The array to iterate over.
- * @param {Function} iteratee The function invoked per iteration.
- * @returns {Array} Returns the new mapped array.
- */
-function arrayMap(array, iteratee) {
-  var index = -1,
-      length = array.length,
-      result = Array(length);
-
-  while (++index < length) {
-    result[index] = iteratee(array[index], index, array);
-  }
-  return result;
-}
-
-module.exports = arrayMap;
-
-},{}],58:[function(require,module,exports){
+},{"./lib/":61}],59:[function(require,module,exports){
 var global=self;/*global Blob,File*/
 
 /**
@@ -10408,56 +10386,7 @@ exports.removeBlobs = function(data, callback) {
   }
 };
 
-},{"./is-buffer":56,"isarray":57}],38:[function(require,module,exports){
-/**
- * lodash 3.8.1 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-var isArray = require('lodash.isarray');
-
-/** Used to match property names within property paths. */
-var rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\n\\]|\\.)*?)\2)\]/g;
-
-/** Used to match backslashes in property paths. */
-var reEscapeChar = /\\(\\)?/g;
-
-/**
- * Converts `value` to a string if it's not one. An empty string is returned
- * for `null` or `undefined` values.
- *
- * @private
- * @param {*} value The value to process.
- * @returns {string} Returns the string.
- */
-function baseToString(value) {
-  return value == null ? '' : (value + '');
-}
-
-/**
- * Converts `value` to property path array if it's not one.
- *
- * @private
- * @param {*} value The value to process.
- * @returns {Array} Returns the property path array.
- */
-function toPath(value) {
-  if (isArray(value)) {
-    return value;
-  }
-  var result = [];
-  baseToString(value).replace(rePropName, function(match, number, quote, string) {
-    result.push(quote ? string.replace(reEscapeChar, '$1') : (number || match));
-  });
-  return result;
-}
-
-module.exports = toPath;
-
-},{"lodash.isarray":39}],55:[function(require,module,exports){
+},{"./is-buffer":56,"isarray":57}],51:[function(require,module,exports){
 var global=self;
 /*
  * Module requirements.
@@ -10517,7 +10446,88 @@ function hasBinary(data) {
   return _hasBinary(data);
 }
 
-},{"isarray":63}],40:[function(require,module,exports){
+},{"isarray":62}],63:[function(require,module,exports){
+/**
+ * lodash 3.0.0 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.7.0 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+
+/**
+ * A specialized version of `_.map` for arrays without support for callback
+ * shorthands or `this` binding.
+ *
+ * @private
+ * @param {Array} array The array to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Array} Returns the new mapped array.
+ */
+function arrayMap(array, iteratee) {
+  var index = -1,
+      length = array.length,
+      result = Array(length);
+
+  while (++index < length) {
+    result[index] = iteratee(array[index], index, array);
+  }
+  return result;
+}
+
+module.exports = arrayMap;
+
+},{}],42:[function(require,module,exports){
+/**
+ * lodash 3.8.1 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+var isArray = require('lodash.isarray');
+
+/** Used to match property names within property paths. */
+var rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\n\\]|\\.)*?)\2)\]/g;
+
+/** Used to match backslashes in property paths. */
+var reEscapeChar = /\\(\\)?/g;
+
+/**
+ * Converts `value` to a string if it's not one. An empty string is returned
+ * for `null` or `undefined` values.
+ *
+ * @private
+ * @param {*} value The value to process.
+ * @returns {string} Returns the string.
+ */
+function baseToString(value) {
+  return value == null ? '' : (value + '');
+}
+
+/**
+ * Converts `value` to property path array if it's not one.
+ *
+ * @private
+ * @param {*} value The value to process.
+ * @returns {Array} Returns the property path array.
+ */
+function toPath(value) {
+  if (isArray(value)) {
+    return value;
+  }
+  var result = [];
+  baseToString(value).replace(rePropName, function(match, number, quote, string) {
+    result.push(quote ? string.replace(reEscapeChar, '$1') : (number || match));
+  });
+  return result;
+}
+
+module.exports = toPath;
+
+},{"lodash.isarray":43}],44:[function(require,module,exports){
 /**
  * lodash 3.1.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10669,79 +10679,12 @@ function map(collection, iteratee, thisArg) {
 
 module.exports = map;
 
-},{"lodash._arraymap":62,"lodash._basecallback":64,"lodash._baseeach":65,"lodash.isarray":39}],63:[function(require,module,exports){
+},{"lodash._arraymap":63,"lodash._basecallback":64,"lodash._baseeach":65,"lodash.isarray":43}],62:[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
 },{}],66:[function(require,module,exports){
-/**
- * lodash 3.0.1 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-
-/**
- * A specialized version of `baseCallback` which only supports `this` binding
- * and specifying the number of arguments to provide to `func`.
- *
- * @private
- * @param {Function} func The function to bind.
- * @param {*} thisArg The `this` binding of `func`.
- * @param {number} [argCount] The number of arguments to provide to `func`.
- * @returns {Function} Returns the callback.
- */
-function bindCallback(func, thisArg, argCount) {
-  if (typeof func != 'function') {
-    return identity;
-  }
-  if (thisArg === undefined) {
-    return func;
-  }
-  switch (argCount) {
-    case 1: return function(value) {
-      return func.call(thisArg, value);
-    };
-    case 3: return function(value, index, collection) {
-      return func.call(thisArg, value, index, collection);
-    };
-    case 4: return function(accumulator, value, index, collection) {
-      return func.call(thisArg, accumulator, value, index, collection);
-    };
-    case 5: return function(value, other, key, object, source) {
-      return func.call(thisArg, value, other, key, object, source);
-    };
-  }
-  return function() {
-    return func.apply(thisArg, arguments);
-  };
-}
-
-/**
- * This method returns the first argument provided to it.
- *
- * @static
- * @memberOf _
- * @category Utility
- * @param {*} value Any value.
- * @returns {*} Returns `value`.
- * @example
- *
- * var object = { 'user': 'fred' };
- *
- * _.identity(object) === object;
- * // => true
- */
-function identity(value) {
-  return value;
-}
-
-module.exports = bindCallback;
-
-},{}],67:[function(require,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10849,7 +10792,7 @@ function isArguments(value) {
 
 module.exports = isArguments;
 
-},{}],68:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 /**
  * lodash 3.9.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10988,7 +10931,86 @@ function isNative(value) {
 
 module.exports = getNative;
 
-},{}],65:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
+/**
+ * lodash 3.0.1 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+
+/**
+ * A specialized version of `baseCallback` which only supports `this` binding
+ * and specifying the number of arguments to provide to `func`.
+ *
+ * @private
+ * @param {Function} func The function to bind.
+ * @param {*} thisArg The `this` binding of `func`.
+ * @param {number} [argCount] The number of arguments to provide to `func`.
+ * @returns {Function} Returns the callback.
+ */
+function bindCallback(func, thisArg, argCount) {
+  if (typeof func != 'function') {
+    return identity;
+  }
+  if (thisArg === undefined) {
+    return func;
+  }
+  switch (argCount) {
+    case 1: return function(value) {
+      return func.call(thisArg, value);
+    };
+    case 3: return function(value, index, collection) {
+      return func.call(thisArg, value, index, collection);
+    };
+    case 4: return function(accumulator, value, index, collection) {
+      return func.call(thisArg, accumulator, value, index, collection);
+    };
+    case 5: return function(value, other, key, object, source) {
+      return func.call(thisArg, value, other, key, object, source);
+    };
+  }
+  return function() {
+    return func.apply(thisArg, arguments);
+  };
+}
+
+/**
+ * This method returns the first argument provided to it.
+ *
+ * @static
+ * @memberOf _
+ * @category Utility
+ * @param {*} value Any value.
+ * @returns {*} Returns `value`.
+ * @example
+ *
+ * var object = { 'user': 'fred' };
+ *
+ * _.identity(object) === object;
+ * // => true
+ */
+function identity(value) {
+  return value;
+}
+
+module.exports = bindCallback;
+
+},{}],61:[function(require,module,exports){
+
+module.exports = require('./socket');
+
+/**
+ * Exports parser
+ *
+ * @api public
+ *
+ */
+module.exports.parser = require('engine.io-parser');
+
+},{"./socket":69,"engine.io-parser":70}],65:[function(require,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11171,19 +11193,245 @@ function isObject(value) {
 
 module.exports = baseEach;
 
-},{"lodash.keys":69}],61:[function(require,module,exports){
+},{"lodash.keys":71}],60:[function(require,module,exports){
+/**
+ * lodash 3.1.2 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+var getNative = require('lodash._getnative'),
+    isArguments = require('lodash.isarguments'),
+    isArray = require('lodash.isarray');
 
-module.exports = require('./socket');
+/** Used to detect unsigned integer values. */
+var reIsUint = /^\d+$/;
+
+/** Used for native method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/* Native method references for those with the same name as other `lodash` methods. */
+var nativeKeys = getNative(Object, 'keys');
 
 /**
- * Exports parser
- *
- * @api public
- *
+ * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
+ * of an array-like value.
  */
-module.exports.parser = require('engine.io-parser');
+var MAX_SAFE_INTEGER = 9007199254740991;
 
-},{"./socket":70,"engine.io-parser":71}],64:[function(require,module,exports){
+/**
+ * The base implementation of `_.property` without support for deep paths.
+ *
+ * @private
+ * @param {string} key The key of the property to get.
+ * @returns {Function} Returns the new function.
+ */
+function baseProperty(key) {
+  return function(object) {
+    return object == null ? undefined : object[key];
+  };
+}
+
+/**
+ * Gets the "length" property value of `object`.
+ *
+ * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
+ * that affects Safari on at least iOS 8.1-8.3 ARM64.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {*} Returns the "length" value.
+ */
+var getLength = baseProperty('length');
+
+/**
+ * Checks if `value` is array-like.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
+ */
+function isArrayLike(value) {
+  return value != null && isLength(getLength(value));
+}
+
+/**
+ * Checks if `value` is a valid array-like index.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
+ * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
+ */
+function isIndex(value, length) {
+  value = (typeof value == 'number' || reIsUint.test(value)) ? +value : -1;
+  length = length == null ? MAX_SAFE_INTEGER : length;
+  return value > -1 && value % 1 == 0 && value < length;
+}
+
+/**
+ * Checks if `value` is a valid array-like length.
+ *
+ * **Note:** This function is based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
+ */
+function isLength(value) {
+  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+}
+
+/**
+ * A fallback implementation of `Object.keys` which creates an array of the
+ * own enumerable property names of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ */
+function shimKeys(object) {
+  var props = keysIn(object),
+      propsLength = props.length,
+      length = propsLength && object.length;
+
+  var allowIndexes = !!length && isLength(length) &&
+    (isArray(object) || isArguments(object));
+
+  var index = -1,
+      result = [];
+
+  while (++index < propsLength) {
+    var key = props[index];
+    if ((allowIndexes && isIndex(key, length)) || hasOwnProperty.call(object, key)) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+/**
+ * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
+ * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(1);
+ * // => false
+ */
+function isObject(value) {
+  // Avoid a V8 JIT bug in Chrome 19-20.
+  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
+
+/**
+ * Creates an array of the own enumerable property names of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects. See the
+ * [ES spec](http://ecma-international.org/ecma-262/6.0/#sec-object.keys)
+ * for more details.
+ *
+ * @static
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.keys(new Foo);
+ * // => ['a', 'b'] (iteration order is not guaranteed)
+ *
+ * _.keys('hi');
+ * // => ['0', '1']
+ */
+var keys = !nativeKeys ? shimKeys : function(object) {
+  var Ctor = object == null ? undefined : object.constructor;
+  if ((typeof Ctor == 'function' && Ctor.prototype === object) ||
+      (typeof object != 'function' && isArrayLike(object))) {
+    return shimKeys(object);
+  }
+  return isObject(object) ? nativeKeys(object) : [];
+};
+
+/**
+ * Creates an array of the own and inherited enumerable property names of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects.
+ *
+ * @static
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.keysIn(new Foo);
+ * // => ['a', 'b', 'c'] (iteration order is not guaranteed)
+ */
+function keysIn(object) {
+  if (object == null) {
+    return [];
+  }
+  if (!isObject(object)) {
+    object = Object(object);
+  }
+  var length = object.length;
+  length = (length && isLength(length) &&
+    (isArray(object) || isArguments(object)) && length) || 0;
+
+  var Ctor = object.constructor,
+      index = -1,
+      isProto = typeof Ctor == 'function' && Ctor.prototype === object,
+      result = Array(length),
+      skipIndexes = length > 0;
+
+  while (++index < length) {
+    result[index] = (index + '');
+  }
+  for (var key in object) {
+    if (!(skipIndexes && isIndex(key, length)) &&
+        !(key == 'constructor' && (isProto || !hasOwnProperty.call(object, key)))) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+module.exports = keys;
+
+},{"lodash._getnative":67,"lodash.isarguments":66,"lodash.isarray":40}],64:[function(require,module,exports){
 /**
  * lodash 3.3.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11607,245 +11855,62 @@ function property(path) {
 
 module.exports = baseCallback;
 
-},{"lodash._baseisequal":72,"lodash._bindcallback":66,"lodash.isarray":39,"lodash.pairs":73}],60:[function(require,module,exports){
-/**
- * lodash 3.1.2 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
+},{"lodash._baseisequal":72,"lodash._bindcallback":68,"lodash.isarray":43,"lodash.pairs":73}],74:[function(require,module,exports){
+var global=self;/**
+ * Module dependencies
  */
-var getNative = require('lodash._getnative'),
-    isArguments = require('lodash.isarguments'),
-    isArray = require('lodash.isarray');
 
-/** Used to detect unsigned integer values. */
-var reIsUint = /^\d+$/;
-
-/** Used for native method references. */
-var objectProto = Object.prototype;
-
-/** Used to check objects for own properties. */
-var hasOwnProperty = objectProto.hasOwnProperty;
-
-/* Native method references for those with the same name as other `lodash` methods. */
-var nativeKeys = getNative(Object, 'keys');
+var XMLHttpRequest = require('xmlhttprequest');
+var XHR = require('./polling-xhr');
+var JSONP = require('./polling-jsonp');
+var websocket = require('./websocket');
 
 /**
- * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
- * of an array-like value.
+ * Export transports.
  */
-var MAX_SAFE_INTEGER = 9007199254740991;
+
+exports.polling = polling;
+exports.websocket = websocket;
 
 /**
- * The base implementation of `_.property` without support for deep paths.
+ * Polling transport polymorphic constructor.
+ * Decides on xhr vs jsonp based on feature detection.
  *
- * @private
- * @param {string} key The key of the property to get.
- * @returns {Function} Returns the new function.
+ * @api private
  */
-function baseProperty(key) {
-  return function(object) {
-    return object == null ? undefined : object[key];
-  };
-}
 
-/**
- * Gets the "length" property value of `object`.
- *
- * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
- * that affects Safari on at least iOS 8.1-8.3 ARM64.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {*} Returns the "length" value.
- */
-var getLength = baseProperty('length');
+function polling(opts){
+  var xhr;
+  var xd = false;
+  var xs = false;
+  var jsonp = false !== opts.jsonp;
 
-/**
- * Checks if `value` is array-like.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
- */
-function isArrayLike(value) {
-  return value != null && isLength(getLength(value));
-}
+  if (global.location) {
+    var isSSL = 'https:' == location.protocol;
+    var port = location.port;
 
-/**
- * Checks if `value` is a valid array-like index.
- *
- * @private
- * @param {*} value The value to check.
- * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
- * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
- */
-function isIndex(value, length) {
-  value = (typeof value == 'number' || reIsUint.test(value)) ? +value : -1;
-  length = length == null ? MAX_SAFE_INTEGER : length;
-  return value > -1 && value % 1 == 0 && value < length;
-}
-
-/**
- * Checks if `value` is a valid array-like length.
- *
- * **Note:** This function is based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
- */
-function isLength(value) {
-  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
-}
-
-/**
- * A fallback implementation of `Object.keys` which creates an array of the
- * own enumerable property names of `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- */
-function shimKeys(object) {
-  var props = keysIn(object),
-      propsLength = props.length,
-      length = propsLength && object.length;
-
-  var allowIndexes = !!length && isLength(length) &&
-    (isArray(object) || isArguments(object));
-
-  var index = -1,
-      result = [];
-
-  while (++index < propsLength) {
-    var key = props[index];
-    if ((allowIndexes && isIndex(key, length)) || hasOwnProperty.call(object, key)) {
-      result.push(key);
+    // some user agents have empty `location.port`
+    if (!port) {
+      port = isSSL ? 443 : 80;
     }
+
+    xd = opts.hostname != location.hostname || port != opts.port;
+    xs = opts.secure != isSSL;
   }
-  return result;
+
+  opts.xdomain = xd;
+  opts.xscheme = xs;
+  xhr = new XMLHttpRequest(opts);
+
+  if ('open' in xhr && !opts.forceJSONP) {
+    return new XHR(opts);
+  } else {
+    if (!jsonp) throw new Error('JSONP disabled');
+    return new JSONP(opts);
+  }
 }
 
-/**
- * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
- * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an object, else `false`.
- * @example
- *
- * _.isObject({});
- * // => true
- *
- * _.isObject([1, 2, 3]);
- * // => true
- *
- * _.isObject(1);
- * // => false
- */
-function isObject(value) {
-  // Avoid a V8 JIT bug in Chrome 19-20.
-  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
-  var type = typeof value;
-  return !!value && (type == 'object' || type == 'function');
-}
-
-/**
- * Creates an array of the own enumerable property names of `object`.
- *
- * **Note:** Non-object values are coerced to objects. See the
- * [ES spec](http://ecma-international.org/ecma-262/6.0/#sec-object.keys)
- * for more details.
- *
- * @static
- * @memberOf _
- * @category Object
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- * @example
- *
- * function Foo() {
- *   this.a = 1;
- *   this.b = 2;
- * }
- *
- * Foo.prototype.c = 3;
- *
- * _.keys(new Foo);
- * // => ['a', 'b'] (iteration order is not guaranteed)
- *
- * _.keys('hi');
- * // => ['0', '1']
- */
-var keys = !nativeKeys ? shimKeys : function(object) {
-  var Ctor = object == null ? undefined : object.constructor;
-  if ((typeof Ctor == 'function' && Ctor.prototype === object) ||
-      (typeof object != 'function' && isArrayLike(object))) {
-    return shimKeys(object);
-  }
-  return isObject(object) ? nativeKeys(object) : [];
-};
-
-/**
- * Creates an array of the own and inherited enumerable property names of `object`.
- *
- * **Note:** Non-object values are coerced to objects.
- *
- * @static
- * @memberOf _
- * @category Object
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- * @example
- *
- * function Foo() {
- *   this.a = 1;
- *   this.b = 2;
- * }
- *
- * Foo.prototype.c = 3;
- *
- * _.keysIn(new Foo);
- * // => ['a', 'b', 'c'] (iteration order is not guaranteed)
- */
-function keysIn(object) {
-  if (object == null) {
-    return [];
-  }
-  if (!isObject(object)) {
-    object = Object(object);
-  }
-  var length = object.length;
-  length = (length && isLength(length) &&
-    (isArray(object) || isArguments(object)) && length) || 0;
-
-  var Ctor = object.constructor,
-      index = -1,
-      isProto = typeof Ctor == 'function' && Ctor.prototype === object,
-      result = Array(length),
-      skipIndexes = length > 0;
-
-  while (++index < length) {
-    result[index] = (index + '');
-  }
-  for (var key in object) {
-    if (!(skipIndexes && isIndex(key, length)) &&
-        !(key == 'constructor' && (isProto || !hasOwnProperty.call(object, key)))) {
-      result.push(key);
-    }
-  }
-  return result;
-}
-
-module.exports = keys;
-
-},{"lodash._getnative":68,"lodash.isarguments":67,"lodash.isarray":44}],74:[function(require,module,exports){
+},{"./polling-jsonp":77,"./polling-xhr":76,"./websocket":78,"xmlhttprequest":75}],79:[function(require,module,exports){
 /**
  * lodash 3.0.2 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11957,62 +12022,7 @@ function isTypedArray(value) {
 
 module.exports = isTypedArray;
 
-},{}],75:[function(require,module,exports){
-var global=self;/**
- * Module dependencies
- */
-
-var XMLHttpRequest = require('xmlhttprequest');
-var XHR = require('./polling-xhr');
-var JSONP = require('./polling-jsonp');
-var websocket = require('./websocket');
-
-/**
- * Export transports.
- */
-
-exports.polling = polling;
-exports.websocket = websocket;
-
-/**
- * Polling transport polymorphic constructor.
- * Decides on xhr vs jsonp based on feature detection.
- *
- * @api private
- */
-
-function polling(opts){
-  var xhr;
-  var xd = false;
-  var xs = false;
-  var jsonp = false !== opts.jsonp;
-
-  if (global.location) {
-    var isSSL = 'https:' == location.protocol;
-    var port = location.port;
-
-    // some user agents have empty `location.port`
-    if (!port) {
-      port = isSSL ? 443 : 80;
-    }
-
-    xd = opts.hostname != location.hostname || port != opts.port;
-    xs = opts.secure != isSSL;
-  }
-
-  opts.xdomain = xd;
-  opts.xscheme = xs;
-  xhr = new XMLHttpRequest(opts);
-
-  if ('open' in xhr && !opts.forceJSONP) {
-    return new XHR(opts);
-  } else {
-    if (!jsonp) throw new Error('JSONP disabled');
-    return new JSONP(opts);
-  }
-}
-
-},{"./polling-jsonp":79,"./polling-xhr":77,"./websocket":78,"xmlhttprequest":76}],80:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 
 /**
  * Gets the keys for an object.
@@ -12068,47 +12078,6 @@ module.exports = function parsejson(data) {
 };
 },{}],82:[function(require,module,exports){
 /**
- * Parses an URI
- *
- * @author Steven Levithan <stevenlevithan.com> (MIT license)
- * @api private
- */
-
-var re = /^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
-
-var parts = [
-    'source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'anchor'
-];
-
-module.exports = function parseuri(str) {
-    var src = str,
-        b = str.indexOf('['),
-        e = str.indexOf(']');
-
-    if (b != -1 && e != -1) {
-        str = str.substring(0, b) + str.substring(b, e).replace(/:/g, ';') + str.substring(e, str.length);
-    }
-
-    var m = re.exec(str || ''),
-        uri = {},
-        i = 14;
-
-    while (i--) {
-        uri[parts[i]] = m[i] || '';
-    }
-
-    if (b != -1 && e != -1) {
-        uri.source = src;
-        uri.host = uri.host.substring(1, uri.host.length - 1).replace(/;/g, ':');
-        uri.authority = uri.authority.replace('[', '').replace(']', '').replace(/;/g, ':');
-        uri.ipv6uri = true;
-    }
-
-    return uri;
-};
-
-},{}],83:[function(require,module,exports){
-/**
  * Compiles a querystring
  * Returns string representation of the object
  *
@@ -12146,7 +12115,7 @@ exports.decode = function(qs){
   return qry;
 };
 
-},{}],70:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 var global=self;/**
  * Module dependencies.
  */
@@ -12853,334 +12822,48 @@ Socket.prototype.filterUpgrades = function (upgrades) {
   return filteredUpgrades;
 };
 
-},{"./transport":84,"./transports":75,"component-emitter":48,"debug":85,"engine.io-parser":71,"indexof":53,"parsejson":81,"parseqs":83,"parseuri":82}],86:[function(require,module,exports){
+},{"./transport":83,"./transports":74,"component-emitter":48,"debug":84,"engine.io-parser":70,"indexof":55,"parsejson":81,"parseqs":82,"parseuri":85}],85:[function(require,module,exports){
 /**
- * lodash 3.9.1 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
+ * Parses an URI
+ *
+ * @author Steven Levithan <stevenlevithan.com> (MIT license)
+ * @api private
  */
 
-/** `Object#toString` result references. */
-var funcTag = '[object Function]';
+var re = /^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
 
-/** Used to detect host constructors (Safari > 5). */
-var reIsHostCtor = /^\[object .+?Constructor\]$/;
+var parts = [
+    'source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'anchor'
+];
 
-/**
- * Checks if `value` is object-like.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
- */
-function isObjectLike(value) {
-  return !!value && typeof value == 'object';
-}
+module.exports = function parseuri(str) {
+    var src = str,
+        b = str.indexOf('['),
+        e = str.indexOf(']');
 
-/** Used for native method references. */
-var objectProto = Object.prototype;
+    if (b != -1 && e != -1) {
+        str = str.substring(0, b) + str.substring(b, e).replace(/:/g, ';') + str.substring(e, str.length);
+    }
 
-/** Used to resolve the decompiled source of functions. */
-var fnToString = Function.prototype.toString;
+    var m = re.exec(str || ''),
+        uri = {},
+        i = 14;
 
-/** Used to check objects for own properties. */
-var hasOwnProperty = objectProto.hasOwnProperty;
+    while (i--) {
+        uri[parts[i]] = m[i] || '';
+    }
 
-/**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
- * of values.
- */
-var objToString = objectProto.toString;
+    if (b != -1 && e != -1) {
+        uri.source = src;
+        uri.host = uri.host.substring(1, uri.host.length - 1).replace(/;/g, ':');
+        uri.authority = uri.authority.replace('[', '').replace(']', '').replace(/;/g, ':');
+        uri.ipv6uri = true;
+    }
 
-/** Used to detect if a method is native. */
-var reIsNative = RegExp('^' +
-  fnToString.call(hasOwnProperty).replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')
-  .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
-);
+    return uri;
+};
 
-/**
- * Gets the native function at `key` of `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @param {string} key The key of the method to get.
- * @returns {*} Returns the function if it's native, else `undefined`.
- */
-function getNative(object, key) {
-  var value = object == null ? undefined : object[key];
-  return isNative(value) ? value : undefined;
-}
-
-/**
- * Checks if `value` is classified as a `Function` object.
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
- * @example
- *
- * _.isFunction(_);
- * // => true
- *
- * _.isFunction(/abc/);
- * // => false
- */
-function isFunction(value) {
-  // The use of `Object#toString` avoids issues with the `typeof` operator
-  // in older versions of Chrome and Safari which return 'function' for regexes
-  // and Safari 8 equivalents which return 'object' for typed array constructors.
-  return isObject(value) && objToString.call(value) == funcTag;
-}
-
-/**
- * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
- * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an object, else `false`.
- * @example
- *
- * _.isObject({});
- * // => true
- *
- * _.isObject([1, 2, 3]);
- * // => true
- *
- * _.isObject(1);
- * // => false
- */
-function isObject(value) {
-  // Avoid a V8 JIT bug in Chrome 19-20.
-  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
-  var type = typeof value;
-  return !!value && (type == 'object' || type == 'function');
-}
-
-/**
- * Checks if `value` is a native function.
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a native function, else `false`.
- * @example
- *
- * _.isNative(Array.prototype.push);
- * // => true
- *
- * _.isNative(_);
- * // => false
- */
-function isNative(value) {
-  if (value == null) {
-    return false;
-  }
-  if (isFunction(value)) {
-    return reIsNative.test(fnToString.call(value));
-  }
-  return isObjectLike(value) && reIsHostCtor.test(value);
-}
-
-module.exports = getNative;
-
-},{}],87:[function(require,module,exports){
-/**
- * lodash 3.0.4 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-
-/**
- * Checks if `value` is object-like.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
- */
-function isObjectLike(value) {
-  return !!value && typeof value == 'object';
-}
-
-/** Used for native method references. */
-var objectProto = Object.prototype;
-
-/** Used to check objects for own properties. */
-var hasOwnProperty = objectProto.hasOwnProperty;
-
-/** Native method references. */
-var propertyIsEnumerable = objectProto.propertyIsEnumerable;
-
-/**
- * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
- * of an array-like value.
- */
-var MAX_SAFE_INTEGER = 9007199254740991;
-
-/**
- * The base implementation of `_.property` without support for deep paths.
- *
- * @private
- * @param {string} key The key of the property to get.
- * @returns {Function} Returns the new function.
- */
-function baseProperty(key) {
-  return function(object) {
-    return object == null ? undefined : object[key];
-  };
-}
-
-/**
- * Gets the "length" property value of `object`.
- *
- * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
- * that affects Safari on at least iOS 8.1-8.3 ARM64.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {*} Returns the "length" value.
- */
-var getLength = baseProperty('length');
-
-/**
- * Checks if `value` is array-like.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
- */
-function isArrayLike(value) {
-  return value != null && isLength(getLength(value));
-}
-
-/**
- * Checks if `value` is a valid array-like length.
- *
- * **Note:** This function is based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
- */
-function isLength(value) {
-  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
-}
-
-/**
- * Checks if `value` is classified as an `arguments` object.
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
- * @example
- *
- * _.isArguments(function() { return arguments; }());
- * // => true
- *
- * _.isArguments([1, 2, 3]);
- * // => false
- */
-function isArguments(value) {
-  return isObjectLike(value) && isArrayLike(value) &&
-    hasOwnProperty.call(value, 'callee') && !propertyIsEnumerable.call(value, 'callee');
-}
-
-module.exports = isArguments;
-
-},{}],73:[function(require,module,exports){
-/**
- * lodash 3.0.1 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-var keys = require('lodash.keys');
-
-/**
- * Converts `value` to an object if it's not one.
- *
- * @private
- * @param {*} value The value to process.
- * @returns {Object} Returns the object.
- */
-function toObject(value) {
-  return isObject(value) ? value : Object(value);
-}
-
-/**
- * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
- * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an object, else `false`.
- * @example
- *
- * _.isObject({});
- * // => true
- *
- * _.isObject([1, 2, 3]);
- * // => true
- *
- * _.isObject(1);
- * // => false
- */
-function isObject(value) {
-  // Avoid a V8 JIT bug in Chrome 19-20.
-  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
-  var type = typeof value;
-  return !!value && (type == 'object' || type == 'function');
-}
-
-/**
- * Creates a two dimensional array of the key-value pairs for `object`,
- * e.g. `[[key1, value1], [key2, value2]]`.
- *
- * @static
- * @memberOf _
- * @category Object
- * @param {Object} object The object to query.
- * @returns {Array} Returns the new array of key-value pairs.
- * @example
- *
- * _.pairs({ 'barney': 36, 'fred': 40 });
- * // => [['barney', 36], ['fred', 40]] (iteration order is not guaranteed)
- */
-function pairs(object) {
-  object = toObject(object);
-
-  var index = -1,
-      props = keys(object),
-      length = props.length,
-      result = Array(length);
-
-  while (++index < length) {
-    var key = props[index];
-    result[index] = [key, object[key]];
-  }
-  return result;
-}
-
-module.exports = pairs;
-
-},{"lodash.keys":69}],85:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -13329,7 +13012,334 @@ function load() {
 
 exports.enable(load());
 
-},{"./debug":88}],72:[function(require,module,exports){
+},{"./debug":86}],73:[function(require,module,exports){
+/**
+ * lodash 3.0.1 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+var keys = require('lodash.keys');
+
+/**
+ * Converts `value` to an object if it's not one.
+ *
+ * @private
+ * @param {*} value The value to process.
+ * @returns {Object} Returns the object.
+ */
+function toObject(value) {
+  return isObject(value) ? value : Object(value);
+}
+
+/**
+ * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
+ * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(1);
+ * // => false
+ */
+function isObject(value) {
+  // Avoid a V8 JIT bug in Chrome 19-20.
+  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
+
+/**
+ * Creates a two dimensional array of the key-value pairs for `object`,
+ * e.g. `[[key1, value1], [key2, value2]]`.
+ *
+ * @static
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the new array of key-value pairs.
+ * @example
+ *
+ * _.pairs({ 'barney': 36, 'fred': 40 });
+ * // => [['barney', 36], ['fred', 40]] (iteration order is not guaranteed)
+ */
+function pairs(object) {
+  object = toObject(object);
+
+  var index = -1,
+      props = keys(object),
+      length = props.length,
+      result = Array(length);
+
+  while (++index < length) {
+    var key = props[index];
+    result[index] = [key, object[key]];
+  }
+  return result;
+}
+
+module.exports = pairs;
+
+},{"lodash.keys":71}],87:[function(require,module,exports){
+/**
+ * lodash 3.0.4 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+
+/**
+ * Checks if `value` is object-like.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
+ */
+function isObjectLike(value) {
+  return !!value && typeof value == 'object';
+}
+
+/** Used for native method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/** Native method references. */
+var propertyIsEnumerable = objectProto.propertyIsEnumerable;
+
+/**
+ * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
+ * of an array-like value.
+ */
+var MAX_SAFE_INTEGER = 9007199254740991;
+
+/**
+ * The base implementation of `_.property` without support for deep paths.
+ *
+ * @private
+ * @param {string} key The key of the property to get.
+ * @returns {Function} Returns the new function.
+ */
+function baseProperty(key) {
+  return function(object) {
+    return object == null ? undefined : object[key];
+  };
+}
+
+/**
+ * Gets the "length" property value of `object`.
+ *
+ * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
+ * that affects Safari on at least iOS 8.1-8.3 ARM64.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {*} Returns the "length" value.
+ */
+var getLength = baseProperty('length');
+
+/**
+ * Checks if `value` is array-like.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
+ */
+function isArrayLike(value) {
+  return value != null && isLength(getLength(value));
+}
+
+/**
+ * Checks if `value` is a valid array-like length.
+ *
+ * **Note:** This function is based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
+ */
+function isLength(value) {
+  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+}
+
+/**
+ * Checks if `value` is classified as an `arguments` object.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @example
+ *
+ * _.isArguments(function() { return arguments; }());
+ * // => true
+ *
+ * _.isArguments([1, 2, 3]);
+ * // => false
+ */
+function isArguments(value) {
+  return isObjectLike(value) && isArrayLike(value) &&
+    hasOwnProperty.call(value, 'callee') && !propertyIsEnumerable.call(value, 'callee');
+}
+
+module.exports = isArguments;
+
+},{}],88:[function(require,module,exports){
+/**
+ * lodash 3.9.1 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+
+/** `Object#toString` result references. */
+var funcTag = '[object Function]';
+
+/** Used to detect host constructors (Safari > 5). */
+var reIsHostCtor = /^\[object .+?Constructor\]$/;
+
+/**
+ * Checks if `value` is object-like.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
+ */
+function isObjectLike(value) {
+  return !!value && typeof value == 'object';
+}
+
+/** Used for native method references. */
+var objectProto = Object.prototype;
+
+/** Used to resolve the decompiled source of functions. */
+var fnToString = Function.prototype.toString;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/**
+ * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * of values.
+ */
+var objToString = objectProto.toString;
+
+/** Used to detect if a method is native. */
+var reIsNative = RegExp('^' +
+  fnToString.call(hasOwnProperty).replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')
+  .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
+);
+
+/**
+ * Gets the native function at `key` of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {string} key The key of the method to get.
+ * @returns {*} Returns the function if it's native, else `undefined`.
+ */
+function getNative(object, key) {
+  var value = object == null ? undefined : object[key];
+  return isNative(value) ? value : undefined;
+}
+
+/**
+ * Checks if `value` is classified as a `Function` object.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @example
+ *
+ * _.isFunction(_);
+ * // => true
+ *
+ * _.isFunction(/abc/);
+ * // => false
+ */
+function isFunction(value) {
+  // The use of `Object#toString` avoids issues with the `typeof` operator
+  // in older versions of Chrome and Safari which return 'function' for regexes
+  // and Safari 8 equivalents which return 'object' for typed array constructors.
+  return isObject(value) && objToString.call(value) == funcTag;
+}
+
+/**
+ * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
+ * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(1);
+ * // => false
+ */
+function isObject(value) {
+  // Avoid a V8 JIT bug in Chrome 19-20.
+  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
+
+/**
+ * Checks if `value` is a native function.
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a native function, else `false`.
+ * @example
+ *
+ * _.isNative(Array.prototype.push);
+ * // => true
+ *
+ * _.isNative(_);
+ * // => false
+ */
+function isNative(value) {
+  if (value == null) {
+    return false;
+  }
+  if (isFunction(value)) {
+    return reIsNative.test(fnToString.call(value));
+  }
+  return isObjectLike(value) && reIsHostCtor.test(value);
+}
+
+module.exports = getNative;
+
+},{}],72:[function(require,module,exports){
 /**
  * lodash 3.0.7 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -13673,245 +13683,7 @@ function isObject(value) {
 
 module.exports = baseIsEqual;
 
-},{"lodash.isarray":39,"lodash.istypedarray":74,"lodash.keys":69}],69:[function(require,module,exports){
-/**
- * lodash 3.1.2 (Custom Build) <https://lodash.com/>
- * Build: `lodash modern modularize exports="npm" -o ./`
- * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- * Available under MIT license <https://lodash.com/license>
- */
-var getNative = require('lodash._getnative'),
-    isArguments = require('lodash.isarguments'),
-    isArray = require('lodash.isarray');
-
-/** Used to detect unsigned integer values. */
-var reIsUint = /^\d+$/;
-
-/** Used for native method references. */
-var objectProto = Object.prototype;
-
-/** Used to check objects for own properties. */
-var hasOwnProperty = objectProto.hasOwnProperty;
-
-/* Native method references for those with the same name as other `lodash` methods. */
-var nativeKeys = getNative(Object, 'keys');
-
-/**
- * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
- * of an array-like value.
- */
-var MAX_SAFE_INTEGER = 9007199254740991;
-
-/**
- * The base implementation of `_.property` without support for deep paths.
- *
- * @private
- * @param {string} key The key of the property to get.
- * @returns {Function} Returns the new function.
- */
-function baseProperty(key) {
-  return function(object) {
-    return object == null ? undefined : object[key];
-  };
-}
-
-/**
- * Gets the "length" property value of `object`.
- *
- * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
- * that affects Safari on at least iOS 8.1-8.3 ARM64.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {*} Returns the "length" value.
- */
-var getLength = baseProperty('length');
-
-/**
- * Checks if `value` is array-like.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
- */
-function isArrayLike(value) {
-  return value != null && isLength(getLength(value));
-}
-
-/**
- * Checks if `value` is a valid array-like index.
- *
- * @private
- * @param {*} value The value to check.
- * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
- * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
- */
-function isIndex(value, length) {
-  value = (typeof value == 'number' || reIsUint.test(value)) ? +value : -1;
-  length = length == null ? MAX_SAFE_INTEGER : length;
-  return value > -1 && value % 1 == 0 && value < length;
-}
-
-/**
- * Checks if `value` is a valid array-like length.
- *
- * **Note:** This function is based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
- */
-function isLength(value) {
-  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
-}
-
-/**
- * A fallback implementation of `Object.keys` which creates an array of the
- * own enumerable property names of `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- */
-function shimKeys(object) {
-  var props = keysIn(object),
-      propsLength = props.length,
-      length = propsLength && object.length;
-
-  var allowIndexes = !!length && isLength(length) &&
-    (isArray(object) || isArguments(object));
-
-  var index = -1,
-      result = [];
-
-  while (++index < propsLength) {
-    var key = props[index];
-    if ((allowIndexes && isIndex(key, length)) || hasOwnProperty.call(object, key)) {
-      result.push(key);
-    }
-  }
-  return result;
-}
-
-/**
- * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
- * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
- *
- * @static
- * @memberOf _
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an object, else `false`.
- * @example
- *
- * _.isObject({});
- * // => true
- *
- * _.isObject([1, 2, 3]);
- * // => true
- *
- * _.isObject(1);
- * // => false
- */
-function isObject(value) {
-  // Avoid a V8 JIT bug in Chrome 19-20.
-  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
-  var type = typeof value;
-  return !!value && (type == 'object' || type == 'function');
-}
-
-/**
- * Creates an array of the own enumerable property names of `object`.
- *
- * **Note:** Non-object values are coerced to objects. See the
- * [ES spec](http://ecma-international.org/ecma-262/6.0/#sec-object.keys)
- * for more details.
- *
- * @static
- * @memberOf _
- * @category Object
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- * @example
- *
- * function Foo() {
- *   this.a = 1;
- *   this.b = 2;
- * }
- *
- * Foo.prototype.c = 3;
- *
- * _.keys(new Foo);
- * // => ['a', 'b'] (iteration order is not guaranteed)
- *
- * _.keys('hi');
- * // => ['0', '1']
- */
-var keys = !nativeKeys ? shimKeys : function(object) {
-  var Ctor = object == null ? undefined : object.constructor;
-  if ((typeof Ctor == 'function' && Ctor.prototype === object) ||
-      (typeof object != 'function' && isArrayLike(object))) {
-    return shimKeys(object);
-  }
-  return isObject(object) ? nativeKeys(object) : [];
-};
-
-/**
- * Creates an array of the own and inherited enumerable property names of `object`.
- *
- * **Note:** Non-object values are coerced to objects.
- *
- * @static
- * @memberOf _
- * @category Object
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- * @example
- *
- * function Foo() {
- *   this.a = 1;
- *   this.b = 2;
- * }
- *
- * Foo.prototype.c = 3;
- *
- * _.keysIn(new Foo);
- * // => ['a', 'b', 'c'] (iteration order is not guaranteed)
- */
-function keysIn(object) {
-  if (object == null) {
-    return [];
-  }
-  if (!isObject(object)) {
-    object = Object(object);
-  }
-  var length = object.length;
-  length = (length && isLength(length) &&
-    (isArray(object) || isArguments(object)) && length) || 0;
-
-  var Ctor = object.constructor,
-      index = -1,
-      isProto = typeof Ctor == 'function' && Ctor.prototype === object,
-      result = Array(length),
-      skipIndexes = length > 0;
-
-  while (++index < length) {
-    result[index] = (index + '');
-  }
-  for (var key in object) {
-    if (!(skipIndexes && isIndex(key, length)) &&
-        !(key == 'constructor' && (isProto || !hasOwnProperty.call(object, key)))) {
-      result.push(key);
-    }
-  }
-  return result;
-}
-
-module.exports = keys;
-
-},{"lodash._getnative":86,"lodash.isarguments":87,"lodash.isarray":39}],89:[function(require,module,exports){
+},{"lodash.isarray":43,"lodash.istypedarray":79,"lodash.keys":71}],89:[function(require,module,exports){
 var global=self;/*! https://mths.be/utf8js v2.0.0 by @mathias */
 ;(function(root) {
 
@@ -14158,37 +13930,6 @@ var global=self;/*! https://mths.be/utf8js v2.0.0 by @mathias */
 }(this));
 
 },{}],90:[function(require,module,exports){
-/**
- * An abstraction for slicing an arraybuffer even when
- * ArrayBuffer.prototype.slice is not supported
- *
- * @api public
- */
-
-module.exports = function(arraybuffer, start, end) {
-  var bytes = arraybuffer.byteLength;
-  start = start || 0;
-  end = end || bytes;
-
-  if (arraybuffer.slice) { return arraybuffer.slice(start, end); }
-
-  if (start < 0) { start += bytes; }
-  if (end < 0) { end += bytes; }
-  if (end > bytes) { end = bytes; }
-
-  if (start >= bytes || start >= end || bytes === 0) {
-    return new ArrayBuffer(0);
-  }
-
-  var abv = new Uint8Array(arraybuffer);
-  var result = new Uint8Array(end - start);
-  for (var i = start, ii = 0; i < end; i++, ii++) {
-    result[ii] = abv[i];
-  }
-  return result.buffer;
-};
-
-},{}],91:[function(require,module,exports){
 /*
  * base64-arraybuffer
  * https://github.com/niklasvh/base64-arraybuffer
@@ -14249,135 +13990,38 @@ module.exports = function(arraybuffer, start, end) {
   };
 })("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
 
-},{}],92:[function(require,module,exports){
-var global=self;/**
- * Create a blob builder even when vendor prefixes exist
- */
-
-var BlobBuilder = global.BlobBuilder
-  || global.WebKitBlobBuilder
-  || global.MSBlobBuilder
-  || global.MozBlobBuilder;
-
+},{}],91:[function(require,module,exports){
 /**
- * Check if Blob constructor is supported
+ * An abstraction for slicing an arraybuffer even when
+ * ArrayBuffer.prototype.slice is not supported
+ *
+ * @api public
  */
 
-var blobSupported = (function() {
-  try {
-    var a = new Blob(['hi']);
-    return a.size === 2;
-  } catch(e) {
-    return false;
-  }
-})();
+module.exports = function(arraybuffer, start, end) {
+  var bytes = arraybuffer.byteLength;
+  start = start || 0;
+  end = end || bytes;
 
-/**
- * Check if Blob constructor supports ArrayBufferViews
- * Fails in Safari 6, so we need to map to ArrayBuffers there.
- */
+  if (arraybuffer.slice) { return arraybuffer.slice(start, end); }
 
-var blobSupportsArrayBufferView = blobSupported && (function() {
-  try {
-    var b = new Blob([new Uint8Array([1,2])]);
-    return b.size === 2;
-  } catch(e) {
-    return false;
-  }
-})();
+  if (start < 0) { start += bytes; }
+  if (end < 0) { end += bytes; }
+  if (end > bytes) { end = bytes; }
 
-/**
- * Check if BlobBuilder is supported
- */
-
-var blobBuilderSupported = BlobBuilder
-  && BlobBuilder.prototype.append
-  && BlobBuilder.prototype.getBlob;
-
-/**
- * Helper function that maps ArrayBufferViews to ArrayBuffers
- * Used by BlobBuilder constructor and old browsers that didn't
- * support it in the Blob constructor.
- */
-
-function mapArrayBufferViews(ary) {
-  for (var i = 0; i < ary.length; i++) {
-    var chunk = ary[i];
-    if (chunk.buffer instanceof ArrayBuffer) {
-      var buf = chunk.buffer;
-
-      // if this is a subarray, make a copy so we only
-      // include the subarray region from the underlying buffer
-      if (chunk.byteLength !== buf.byteLength) {
-        var copy = new Uint8Array(chunk.byteLength);
-        copy.set(new Uint8Array(buf, chunk.byteOffset, chunk.byteLength));
-        buf = copy.buffer;
-      }
-
-      ary[i] = buf;
-    }
-  }
-}
-
-function BlobBuilderConstructor(ary, options) {
-  options = options || {};
-
-  var bb = new BlobBuilder();
-  mapArrayBufferViews(ary);
-
-  for (var i = 0; i < ary.length; i++) {
-    bb.append(ary[i]);
+  if (start >= bytes || start >= end || bytes === 0) {
+    return new ArrayBuffer(0);
   }
 
-  return (options.type) ? bb.getBlob(options.type) : bb.getBlob();
+  var abv = new Uint8Array(arraybuffer);
+  var result = new Uint8Array(end - start);
+  for (var i = start, ii = 0; i < end; i++, ii++) {
+    result[ii] = abv[i];
+  }
+  return result.buffer;
 };
 
-function BlobConstructor(ary, options) {
-  mapArrayBufferViews(ary);
-  return new Blob(ary, options || {});
-};
-
-module.exports = (function() {
-  if (blobSupported) {
-    return blobSupportsArrayBufferView ? global.Blob : BlobConstructor;
-  } else if (blobBuilderSupported) {
-    return BlobBuilderConstructor;
-  } else {
-    return undefined;
-  }
-})();
-
-},{}],93:[function(require,module,exports){
-module.exports = after
-
-function after(count, callback, err_cb) {
-    var bail = false
-    err_cb = err_cb || noop
-    proxy.count = count
-
-    return (count === 0) ? callback() : proxy
-
-    function proxy(err, result) {
-        if (proxy.count <= 0) {
-            throw new Error('after called too many times')
-        }
-        --proxy.count
-
-        // after first error, rest are passed to err_cb
-        if (err) {
-            bail = true
-            callback(err)
-            // future error callbacks will go to error handler
-            callback = err_cb
-        } else if (proxy.count === 0 && !bail) {
-            callback(null, result)
-        }
-    }
-}
-
-function noop() {}
-
-},{}],84:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -14538,7 +14182,373 @@ Transport.prototype.onClose = function () {
   this.emit('close');
 };
 
-},{"component-emitter":48,"engine.io-parser":71}],71:[function(require,module,exports){
+},{"component-emitter":48,"engine.io-parser":70}],92:[function(require,module,exports){
+module.exports = after
+
+function after(count, callback, err_cb) {
+    var bail = false
+    err_cb = err_cb || noop
+    proxy.count = count
+
+    return (count === 0) ? callback() : proxy
+
+    function proxy(err, result) {
+        if (proxy.count <= 0) {
+            throw new Error('after called too many times')
+        }
+        --proxy.count
+
+        // after first error, rest are passed to err_cb
+        if (err) {
+            bail = true
+            callback(err)
+            // future error callbacks will go to error handler
+            callback = err_cb
+        } else if (proxy.count === 0 && !bail) {
+            callback(null, result)
+        }
+    }
+}
+
+function noop() {}
+
+},{}],93:[function(require,module,exports){
+var global=self;/**
+ * Create a blob builder even when vendor prefixes exist
+ */
+
+var BlobBuilder = global.BlobBuilder
+  || global.WebKitBlobBuilder
+  || global.MSBlobBuilder
+  || global.MozBlobBuilder;
+
+/**
+ * Check if Blob constructor is supported
+ */
+
+var blobSupported = (function() {
+  try {
+    var a = new Blob(['hi']);
+    return a.size === 2;
+  } catch(e) {
+    return false;
+  }
+})();
+
+/**
+ * Check if Blob constructor supports ArrayBufferViews
+ * Fails in Safari 6, so we need to map to ArrayBuffers there.
+ */
+
+var blobSupportsArrayBufferView = blobSupported && (function() {
+  try {
+    var b = new Blob([new Uint8Array([1,2])]);
+    return b.size === 2;
+  } catch(e) {
+    return false;
+  }
+})();
+
+/**
+ * Check if BlobBuilder is supported
+ */
+
+var blobBuilderSupported = BlobBuilder
+  && BlobBuilder.prototype.append
+  && BlobBuilder.prototype.getBlob;
+
+/**
+ * Helper function that maps ArrayBufferViews to ArrayBuffers
+ * Used by BlobBuilder constructor and old browsers that didn't
+ * support it in the Blob constructor.
+ */
+
+function mapArrayBufferViews(ary) {
+  for (var i = 0; i < ary.length; i++) {
+    var chunk = ary[i];
+    if (chunk.buffer instanceof ArrayBuffer) {
+      var buf = chunk.buffer;
+
+      // if this is a subarray, make a copy so we only
+      // include the subarray region from the underlying buffer
+      if (chunk.byteLength !== buf.byteLength) {
+        var copy = new Uint8Array(chunk.byteLength);
+        copy.set(new Uint8Array(buf, chunk.byteOffset, chunk.byteLength));
+        buf = copy.buffer;
+      }
+
+      ary[i] = buf;
+    }
+  }
+}
+
+function BlobBuilderConstructor(ary, options) {
+  options = options || {};
+
+  var bb = new BlobBuilder();
+  mapArrayBufferViews(ary);
+
+  for (var i = 0; i < ary.length; i++) {
+    bb.append(ary[i]);
+  }
+
+  return (options.type) ? bb.getBlob(options.type) : bb.getBlob();
+};
+
+function BlobConstructor(ary, options) {
+  mapArrayBufferViews(ary);
+  return new Blob(ary, options || {});
+};
+
+module.exports = (function() {
+  if (blobSupported) {
+    return blobSupportsArrayBufferView ? global.Blob : BlobConstructor;
+  } else if (blobBuilderSupported) {
+    return BlobBuilderConstructor;
+  } else {
+    return undefined;
+  }
+})();
+
+},{}],71:[function(require,module,exports){
+/**
+ * lodash 3.1.2 (Custom Build) <https://lodash.com/>
+ * Build: `lodash modern modularize exports="npm" -o ./`
+ * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <https://lodash.com/license>
+ */
+var getNative = require('lodash._getnative'),
+    isArguments = require('lodash.isarguments'),
+    isArray = require('lodash.isarray');
+
+/** Used to detect unsigned integer values. */
+var reIsUint = /^\d+$/;
+
+/** Used for native method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/* Native method references for those with the same name as other `lodash` methods. */
+var nativeKeys = getNative(Object, 'keys');
+
+/**
+ * Used as the [maximum length](http://ecma-international.org/ecma-262/6.0/#sec-number.max_safe_integer)
+ * of an array-like value.
+ */
+var MAX_SAFE_INTEGER = 9007199254740991;
+
+/**
+ * The base implementation of `_.property` without support for deep paths.
+ *
+ * @private
+ * @param {string} key The key of the property to get.
+ * @returns {Function} Returns the new function.
+ */
+function baseProperty(key) {
+  return function(object) {
+    return object == null ? undefined : object[key];
+  };
+}
+
+/**
+ * Gets the "length" property value of `object`.
+ *
+ * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
+ * that affects Safari on at least iOS 8.1-8.3 ARM64.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {*} Returns the "length" value.
+ */
+var getLength = baseProperty('length');
+
+/**
+ * Checks if `value` is array-like.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
+ */
+function isArrayLike(value) {
+  return value != null && isLength(getLength(value));
+}
+
+/**
+ * Checks if `value` is a valid array-like index.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
+ * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
+ */
+function isIndex(value, length) {
+  value = (typeof value == 'number' || reIsUint.test(value)) ? +value : -1;
+  length = length == null ? MAX_SAFE_INTEGER : length;
+  return value > -1 && value % 1 == 0 && value < length;
+}
+
+/**
+ * Checks if `value` is a valid array-like length.
+ *
+ * **Note:** This function is based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
+ */
+function isLength(value) {
+  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+}
+
+/**
+ * A fallback implementation of `Object.keys` which creates an array of the
+ * own enumerable property names of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ */
+function shimKeys(object) {
+  var props = keysIn(object),
+      propsLength = props.length,
+      length = propsLength && object.length;
+
+  var allowIndexes = !!length && isLength(length) &&
+    (isArray(object) || isArguments(object));
+
+  var index = -1,
+      result = [];
+
+  while (++index < propsLength) {
+    var key = props[index];
+    if ((allowIndexes && isIndex(key, length)) || hasOwnProperty.call(object, key)) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+/**
+ * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
+ * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(1);
+ * // => false
+ */
+function isObject(value) {
+  // Avoid a V8 JIT bug in Chrome 19-20.
+  // See https://code.google.com/p/v8/issues/detail?id=2291 for more details.
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
+
+/**
+ * Creates an array of the own enumerable property names of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects. See the
+ * [ES spec](http://ecma-international.org/ecma-262/6.0/#sec-object.keys)
+ * for more details.
+ *
+ * @static
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.keys(new Foo);
+ * // => ['a', 'b'] (iteration order is not guaranteed)
+ *
+ * _.keys('hi');
+ * // => ['0', '1']
+ */
+var keys = !nativeKeys ? shimKeys : function(object) {
+  var Ctor = object == null ? undefined : object.constructor;
+  if ((typeof Ctor == 'function' && Ctor.prototype === object) ||
+      (typeof object != 'function' && isArrayLike(object))) {
+    return shimKeys(object);
+  }
+  return isObject(object) ? nativeKeys(object) : [];
+};
+
+/**
+ * Creates an array of the own and inherited enumerable property names of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects.
+ *
+ * @static
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.keysIn(new Foo);
+ * // => ['a', 'b', 'c'] (iteration order is not guaranteed)
+ */
+function keysIn(object) {
+  if (object == null) {
+    return [];
+  }
+  if (!isObject(object)) {
+    object = Object(object);
+  }
+  var length = object.length;
+  length = (length && isLength(length) &&
+    (isArray(object) || isArguments(object)) && length) || 0;
+
+  var Ctor = object.constructor,
+      index = -1,
+      isProto = typeof Ctor == 'function' && Ctor.prototype === object,
+      result = Array(length),
+      skipIndexes = length > 0;
+
+  while (++index < length) {
+    result[index] = (index + '');
+  }
+  for (var key in object) {
+    if (!(skipIndexes && isIndex(key, length)) &&
+        !(key == 'constructor' && (isProto || !hasOwnProperty.call(object, key)))) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+module.exports = keys;
+
+},{"lodash._getnative":88,"lodash.isarguments":87,"lodash.isarray":43}],70:[function(require,module,exports){
 var global=self;/**
  * Module dependencies.
  */
@@ -15134,7 +15144,7 @@ exports.decodePayloadAsBinary = function (data, binaryType, callback) {
   });
 };
 
-},{"./keys":80,"after":93,"arraybuffer.slice":90,"base64-arraybuffer":91,"blob":92,"has-binary":55,"utf8":89}],76:[function(require,module,exports){
+},{"./keys":80,"after":92,"arraybuffer.slice":91,"base64-arraybuffer":90,"blob":93,"has-binary":51,"utf8":89}],75:[function(require,module,exports){
 // browser shim for xmlhttprequest module
 var hasCORS = require('has-cors');
 
@@ -15172,7 +15182,7 @@ module.exports = function(opts) {
   }
 }
 
-},{"has-cors":94}],88:[function(require,module,exports){
+},{"has-cors":94}],86:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -15371,7 +15381,242 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":95}],95:[function(require,module,exports){
+},{"ms":95}],77:[function(require,module,exports){
+var global=self;
+/**
+ * Module requirements.
+ */
+
+var Polling = require('./polling');
+var inherit = require('component-inherit');
+
+/**
+ * Module exports.
+ */
+
+module.exports = JSONPPolling;
+
+/**
+ * Cached regular expressions.
+ */
+
+var rNewline = /\n/g;
+var rEscapedNewline = /\\n/g;
+
+/**
+ * Global JSONP callbacks.
+ */
+
+var callbacks;
+
+/**
+ * Callbacks count.
+ */
+
+var index = 0;
+
+/**
+ * Noop.
+ */
+
+function empty () { }
+
+/**
+ * JSONP Polling constructor.
+ *
+ * @param {Object} opts.
+ * @api public
+ */
+
+function JSONPPolling (opts) {
+  Polling.call(this, opts);
+
+  this.query = this.query || {};
+
+  // define global callbacks array if not present
+  // we do this here (lazily) to avoid unneeded global pollution
+  if (!callbacks) {
+    // we need to consider multiple engines in the same page
+    if (!global.___eio) global.___eio = [];
+    callbacks = global.___eio;
+  }
+
+  // callback identifier
+  this.index = callbacks.length;
+
+  // add callback to jsonp global
+  var self = this;
+  callbacks.push(function (msg) {
+    self.onData(msg);
+  });
+
+  // append to query string
+  this.query.j = this.index;
+
+  // prevent spurious errors from being emitted when the window is unloaded
+  if (global.document && global.addEventListener) {
+    global.addEventListener('beforeunload', function () {
+      if (self.script) self.script.onerror = empty;
+    }, false);
+  }
+}
+
+/**
+ * Inherits from Polling.
+ */
+
+inherit(JSONPPolling, Polling);
+
+/*
+ * JSONP only supports binary as base64 encoded strings
+ */
+
+JSONPPolling.prototype.supportsBinary = false;
+
+/**
+ * Closes the socket.
+ *
+ * @api private
+ */
+
+JSONPPolling.prototype.doClose = function () {
+  if (this.script) {
+    this.script.parentNode.removeChild(this.script);
+    this.script = null;
+  }
+
+  if (this.form) {
+    this.form.parentNode.removeChild(this.form);
+    this.form = null;
+    this.iframe = null;
+  }
+
+  Polling.prototype.doClose.call(this);
+};
+
+/**
+ * Starts a poll cycle.
+ *
+ * @api private
+ */
+
+JSONPPolling.prototype.doPoll = function () {
+  var self = this;
+  var script = document.createElement('script');
+
+  if (this.script) {
+    this.script.parentNode.removeChild(this.script);
+    this.script = null;
+  }
+
+  script.async = true;
+  script.src = this.uri();
+  script.onerror = function(e){
+    self.onError('jsonp poll error',e);
+  };
+
+  var insertAt = document.getElementsByTagName('script')[0];
+  insertAt.parentNode.insertBefore(script, insertAt);
+  this.script = script;
+
+  var isUAgecko = 'undefined' != typeof navigator && /gecko/i.test(navigator.userAgent);
+  
+  if (isUAgecko) {
+    setTimeout(function () {
+      var iframe = document.createElement('iframe');
+      document.body.appendChild(iframe);
+      document.body.removeChild(iframe);
+    }, 100);
+  }
+};
+
+/**
+ * Writes with a hidden iframe.
+ *
+ * @param {String} data to send
+ * @param {Function} called upon flush.
+ * @api private
+ */
+
+JSONPPolling.prototype.doWrite = function (data, fn) {
+  var self = this;
+
+  if (!this.form) {
+    var form = document.createElement('form');
+    var area = document.createElement('textarea');
+    var id = this.iframeId = 'eio_iframe_' + this.index;
+    var iframe;
+
+    form.className = 'socketio';
+    form.style.position = 'absolute';
+    form.style.top = '-1000px';
+    form.style.left = '-1000px';
+    form.target = id;
+    form.method = 'POST';
+    form.setAttribute('accept-charset', 'utf-8');
+    area.name = 'd';
+    form.appendChild(area);
+    document.body.appendChild(form);
+
+    this.form = form;
+    this.area = area;
+  }
+
+  this.form.action = this.uri();
+
+  function complete () {
+    initIframe();
+    fn();
+  }
+
+  function initIframe () {
+    if (self.iframe) {
+      try {
+        self.form.removeChild(self.iframe);
+      } catch (e) {
+        self.onError('jsonp polling iframe removal error', e);
+      }
+    }
+
+    try {
+      // ie6 dynamic iframes with target="" support (thanks Chris Lambacher)
+      var html = '<iframe src="javascript:0" name="'+ self.iframeId +'">';
+      iframe = document.createElement(html);
+    } catch (e) {
+      iframe = document.createElement('iframe');
+      iframe.name = self.iframeId;
+      iframe.src = 'javascript:0';
+    }
+
+    iframe.id = self.iframeId;
+
+    self.form.appendChild(iframe);
+    self.iframe = iframe;
+  }
+
+  initIframe();
+
+  // escape \n to prevent it from being converted into \r\n by some UAs
+  // double escaping is required for escaped new lines because unescaping of new lines can be done safely on server-side
+  data = data.replace(rEscapedNewline, '\\\n');
+  this.area.value = data.replace(rNewline, '\\n');
+
+  try {
+    this.form.submit();
+  } catch(e) {}
+
+  if (this.iframe.attachEvent) {
+    this.iframe.onreadystatechange = function(){
+      if (self.iframe.readyState == 'complete') {
+        complete();
+      }
+    };
+  } else {
+    this.iframe.onload = complete;
+  }
+};
+
+},{"./polling":96,"component-inherit":97}],95:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -15724,242 +15969,7 @@ WS.prototype.check = function(){
   return !!WebSocket && !('__initialize' in WebSocket && this.name === WS.prototype.name);
 };
 
-},{"../transport":84,"component-inherit":97,"debug":85,"engine.io-parser":71,"parseqs":83,"ws":96}],79:[function(require,module,exports){
-var global=self;
-/**
- * Module requirements.
- */
-
-var Polling = require('./polling');
-var inherit = require('component-inherit');
-
-/**
- * Module exports.
- */
-
-module.exports = JSONPPolling;
-
-/**
- * Cached regular expressions.
- */
-
-var rNewline = /\n/g;
-var rEscapedNewline = /\\n/g;
-
-/**
- * Global JSONP callbacks.
- */
-
-var callbacks;
-
-/**
- * Callbacks count.
- */
-
-var index = 0;
-
-/**
- * Noop.
- */
-
-function empty () { }
-
-/**
- * JSONP Polling constructor.
- *
- * @param {Object} opts.
- * @api public
- */
-
-function JSONPPolling (opts) {
-  Polling.call(this, opts);
-
-  this.query = this.query || {};
-
-  // define global callbacks array if not present
-  // we do this here (lazily) to avoid unneeded global pollution
-  if (!callbacks) {
-    // we need to consider multiple engines in the same page
-    if (!global.___eio) global.___eio = [];
-    callbacks = global.___eio;
-  }
-
-  // callback identifier
-  this.index = callbacks.length;
-
-  // add callback to jsonp global
-  var self = this;
-  callbacks.push(function (msg) {
-    self.onData(msg);
-  });
-
-  // append to query string
-  this.query.j = this.index;
-
-  // prevent spurious errors from being emitted when the window is unloaded
-  if (global.document && global.addEventListener) {
-    global.addEventListener('beforeunload', function () {
-      if (self.script) self.script.onerror = empty;
-    }, false);
-  }
-}
-
-/**
- * Inherits from Polling.
- */
-
-inherit(JSONPPolling, Polling);
-
-/*
- * JSONP only supports binary as base64 encoded strings
- */
-
-JSONPPolling.prototype.supportsBinary = false;
-
-/**
- * Closes the socket.
- *
- * @api private
- */
-
-JSONPPolling.prototype.doClose = function () {
-  if (this.script) {
-    this.script.parentNode.removeChild(this.script);
-    this.script = null;
-  }
-
-  if (this.form) {
-    this.form.parentNode.removeChild(this.form);
-    this.form = null;
-    this.iframe = null;
-  }
-
-  Polling.prototype.doClose.call(this);
-};
-
-/**
- * Starts a poll cycle.
- *
- * @api private
- */
-
-JSONPPolling.prototype.doPoll = function () {
-  var self = this;
-  var script = document.createElement('script');
-
-  if (this.script) {
-    this.script.parentNode.removeChild(this.script);
-    this.script = null;
-  }
-
-  script.async = true;
-  script.src = this.uri();
-  script.onerror = function(e){
-    self.onError('jsonp poll error',e);
-  };
-
-  var insertAt = document.getElementsByTagName('script')[0];
-  insertAt.parentNode.insertBefore(script, insertAt);
-  this.script = script;
-
-  var isUAgecko = 'undefined' != typeof navigator && /gecko/i.test(navigator.userAgent);
-  
-  if (isUAgecko) {
-    setTimeout(function () {
-      var iframe = document.createElement('iframe');
-      document.body.appendChild(iframe);
-      document.body.removeChild(iframe);
-    }, 100);
-  }
-};
-
-/**
- * Writes with a hidden iframe.
- *
- * @param {String} data to send
- * @param {Function} called upon flush.
- * @api private
- */
-
-JSONPPolling.prototype.doWrite = function (data, fn) {
-  var self = this;
-
-  if (!this.form) {
-    var form = document.createElement('form');
-    var area = document.createElement('textarea');
-    var id = this.iframeId = 'eio_iframe_' + this.index;
-    var iframe;
-
-    form.className = 'socketio';
-    form.style.position = 'absolute';
-    form.style.top = '-1000px';
-    form.style.left = '-1000px';
-    form.target = id;
-    form.method = 'POST';
-    form.setAttribute('accept-charset', 'utf-8');
-    area.name = 'd';
-    form.appendChild(area);
-    document.body.appendChild(form);
-
-    this.form = form;
-    this.area = area;
-  }
-
-  this.form.action = this.uri();
-
-  function complete () {
-    initIframe();
-    fn();
-  }
-
-  function initIframe () {
-    if (self.iframe) {
-      try {
-        self.form.removeChild(self.iframe);
-      } catch (e) {
-        self.onError('jsonp polling iframe removal error', e);
-      }
-    }
-
-    try {
-      // ie6 dynamic iframes with target="" support (thanks Chris Lambacher)
-      var html = '<iframe src="javascript:0" name="'+ self.iframeId +'">';
-      iframe = document.createElement(html);
-    } catch (e) {
-      iframe = document.createElement('iframe');
-      iframe.name = self.iframeId;
-      iframe.src = 'javascript:0';
-    }
-
-    iframe.id = self.iframeId;
-
-    self.form.appendChild(iframe);
-    self.iframe = iframe;
-  }
-
-  initIframe();
-
-  // escape \n to prevent it from being converted into \r\n by some UAs
-  // double escaping is required for escaped new lines because unescaping of new lines can be done safely on server-side
-  data = data.replace(rEscapedNewline, '\\\n');
-  this.area.value = data.replace(rNewline, '\\n');
-
-  try {
-    this.form.submit();
-  } catch(e) {}
-
-  if (this.iframe.attachEvent) {
-    this.iframe.onreadystatechange = function(){
-      if (self.iframe.readyState == 'complete') {
-        complete();
-      }
-    };
-  } else {
-    this.iframe.onload = complete;
-  }
-};
-
-},{"./polling":98,"component-inherit":97}],96:[function(require,module,exports){
+},{"../transport":83,"component-inherit":97,"debug":84,"engine.io-parser":70,"parseqs":82,"ws":98}],98:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -16004,7 +16014,15 @@ function ws(uri, protocols, opts) {
 
 if (WebSocket) ws.prototype = WebSocket.prototype;
 
-},{}],77:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
+
+module.exports = function(a, b){
+  var fn = function(){};
+  fn.prototype = b.prototype;
+  a.prototype = new fn;
+  a.prototype.constructor = a;
+};
+},{}],76:[function(require,module,exports){
 var global=self;/**
  * Module requirements.
  */
@@ -16390,15 +16408,7 @@ function unloadHandler() {
   }
 }
 
-},{"./polling":98,"component-emitter":48,"component-inherit":97,"debug":85,"xmlhttprequest":76}],97:[function(require,module,exports){
-
-module.exports = function(a, b){
-  var fn = function(){};
-  fn.prototype = b.prototype;
-  a.prototype = new fn;
-  a.prototype.constructor = a;
-};
-},{}],94:[function(require,module,exports){
+},{"./polling":96,"component-emitter":48,"component-inherit":97,"debug":84,"xmlhttprequest":75}],94:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -16423,7 +16433,17 @@ try {
   module.exports = false;
 }
 
-},{"global":99}],98:[function(require,module,exports){
+},{"global":99}],99:[function(require,module,exports){
+
+/**
+ * Returns `this`. Execute this without a "context" (i.e. without it being
+ * attached to an object of the left-hand side), and `this` points to the
+ * "global" scope of the current JS execution.
+ */
+
+module.exports = (function () { return this; })();
+
+},{}],96:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -16670,16 +16690,6 @@ Polling.prototype.uri = function(){
   return schema + '://' + this.hostname + port + this.path + query;
 };
 
-},{"../transport":84,"component-inherit":97,"debug":85,"engine.io-parser":71,"parseqs":83,"xmlhttprequest":76}],99:[function(require,module,exports){
-
-/**
- * Returns `this`. Execute this without a "context" (i.e. without it being
- * attached to an object of the left-hand side), and `this` points to the
- * "global" scope of the current JS execution.
- */
-
-module.exports = (function () { return this; })();
-
-},{}]},{},[1])(1)
+},{"../transport":83,"component-inherit":97,"debug":84,"engine.io-parser":70,"parseqs":82,"xmlhttprequest":75}]},{},[1])(1)
 });
 ;
