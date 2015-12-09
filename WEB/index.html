@@ -45,6 +45,7 @@
             // create our webrtc connection
             var webrtc = new SimpleWebRTC({
                 url:"http://localhost:8888",
+                signal_url:"ws://172.16.120.200:1337",
                 media:{audio:false,video:true},
                 // the id/element dom element that will hold "our" video
                 localVideoEl: 'localVideo',

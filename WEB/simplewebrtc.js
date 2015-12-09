@@ -10,6 +10,7 @@ function SimpleWebRTC(opts) {
     var options = opts || {};
     var config = this.config = {
             url: 'https://sandbox.simplewebrtc.com:443/',
+            signal_url:'ws://127.0.0.1:1337',
             socketio: {/* 'force new connection':true*/},
             connection: null,
             debug: false,
